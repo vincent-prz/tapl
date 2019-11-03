@@ -2,7 +2,6 @@ module Arith.Arith where
 
 import Control.Monad
 import Data.Functor
-import Data.Functor.Identity
 import Text.Parsec.Prim hiding (try)
 import Text.ParserCombinators.Parsec
 
@@ -41,7 +40,7 @@ parseTokens :: Parser [Token]
 parseTokens = many (parseToken <* whitespace)
 
 lexer :: String -> Either ParseError [Token]
-lexer input = parse (parseTokens <* eof) "" input
+lexer input = parse (parseTokens <* eof) "lexing error" input
 
 -- parse
 data Term
@@ -56,7 +55,7 @@ data Term
                    Term
   deriving (Show, Eq)
 
-type ParserTok a = ParsecT [Token] () Identity a
+type ParserTok a = Parsec [Token] () a
 
 parseTerm :: Token -> Term -> ParserTok Term
 parseTerm tok term = do
@@ -122,9 +121,10 @@ parseAST =
 fullParser :: String -> Either ParseError Term
 fullParser s = do
   lexemes <- lexer s
-  parse parseAST "" lexemes
+  parse parseAST "parsing error" lexemes
 
 run :: IO ()
 run = do
   input <- getLine
   print $ fullParser input
+  run
