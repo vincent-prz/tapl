@@ -19,18 +19,19 @@ data Token
   | TOK_IS_ZERO
   deriving (Show, Eq)
 
+-- TODO: how to avoid trying everywhere ?
 parseToken :: Parser Token
 parseToken =
   choice
-    [ string "true" $> TOK_TRUE
-    , string "false" $> TOK_FALSE
-    , string "if" $> TOK_IF
-    , string "then" $> TOK_THEN
-    , string "else" $> TOK_ELSE
-    , char '0' $> TOK_ZERO
-    , string "succ" $> TOK_SUCC
-    , string "pred" $> TOK_PRED
-    , string "iszero" $> TOK_IS_ZERO
+    [ try $ string "true" $> TOK_TRUE
+    , try $ string "false" $> TOK_FALSE
+    , try $ string "if" $> TOK_IF
+    , try $ string "then" $> TOK_THEN
+    , try $ string "else" $> TOK_ELSE
+    , try $ char '0' $> TOK_ZERO
+    , try $ string "succ" $> TOK_SUCC
+    , try $ string "pred" $> TOK_PRED
+    , try $ string "iszero" $> TOK_IS_ZERO
     ]
 
 whitespace :: Parser String
@@ -60,8 +61,7 @@ type ParserTok a = ParsecT [Token] () Identity a
 parseTerm :: Token -> Term -> ParserTok Term
 parseTerm tok term = do
   tok' <- try anyToken
-  let l = tok' == tok
-  if l
+  if tok' == tok
     then pure term
     else fail $ "attempted parsing: " ++ show tok ++ " and got: " ++ show tok'
 
@@ -95,13 +95,28 @@ parseIsZero =
   try $ do
     p <- (== TOK_IS_ZERO) <$> try anyToken
     n <- parseAST
-    guard p
+    guard p -- TODO: what is guard doing here ?
     pure $ T_IS_ZERO n
+
+parseIfThenElse :: ParserTok Term
+parseIfThenElse =
+  try $ do
+    p1 <- (== TOK_IF) <$> try anyToken
+    t1 <- parseAST
+    p2 <- (== TOK_THEN) <$> try anyToken
+    t2 <- parseAST
+    p3 <- (== TOK_ELSE) <$> try anyToken
+    t3 <- parseAST
+    guard p1
+    guard p2
+    guard p3
+    pure $ T_IF_THEN_ELSE t1 t2 t3
 
 parseAST :: ParserTok Term
 parseAST =
-  parseZero <|> parseTrue <|> parseFalse <|> parsePred <|> parseSucc -- <|>
-  --parseIsZero
+  parseZero <|> parseTrue <|> parseFalse <|> parsePred <|> parseSucc <|>
+  parseIsZero <|>
+  parseIfThenElse
 
 -- parsing + lexing
 fullParser :: String -> Either ParseError Term
