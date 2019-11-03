@@ -36,11 +36,11 @@ parseToken =
 whitespace :: Parser String
 whitespace = many (oneOf [' ', '\t', '\n'])
 
-parserTokens :: Parser [Token]
-parserTokens = many (parseToken <* whitespace)
+parseTokens :: Parser [Token]
+parseTokens = many (parseToken <* whitespace)
 
 lexer :: String -> Either ParseError [Token]
-lexer input = parse (parserTokens <* eof) "" input
+lexer input = parse (parseTokens <* eof) "" input
 
 -- parse
 data Term
@@ -53,7 +53,7 @@ data Term
   | T_IF_THEN_ELSE Term
                    Term
                    Term
-  deriving (Show)
+  deriving (Show, Eq)
 
 type ParserTok a = ParsecT [Token] () Identity a
 
@@ -103,15 +103,13 @@ parseAST =
   parseZero <|> parseTrue <|> parseFalse <|> parsePred <|> parseSucc -- <|>
   --parseIsZero
 
---parseTerm = do
---  t <- getInput
---  pure _
+-- parsing + lexing
+fullParser :: String -> Either ParseError Term
+fullParser s = do
+  lexemes <- lexer s
+  parse parseAST "" lexemes
+
 run :: IO ()
 run = do
   input <- getLine
-  let lexemes = lexer input
-  print lexemes
-  case lexemes of
-    Left e -> print e
-    Right ls -> do
-      print $ parse parseSucc mempty ls
+  print $ fullParser input
