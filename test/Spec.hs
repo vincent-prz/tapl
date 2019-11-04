@@ -1,4 +1,5 @@
-import Arith.Arith
+import Arith.Evaluator
+import Arith.Parser
 import Test.Hspec
 
 main :: IO ()
@@ -21,3 +22,15 @@ main =
       it "parses non trivial conditional" $ do
         fullParser "if succ true then 0 else false" `shouldBe`
           Right (T_IF_THEN_ELSE (T_SUCC T_TRUE) T_ZERO T_FALSE)
+    describe "Arith Evaluating" $ do
+      it "evaluates zero" $ do eval T_ZERO `shouldBe` T_ZERO
+      it "evaluates succ zero" $ do
+        eval (T_SUCC T_ZERO) `shouldBe` T_SUCC T_ZERO
+      it "evaluates pred zero to zero" $ do
+        eval (T_PRED T_ZERO) `shouldBe` T_ZERO
+      it "evaluates pred succ 0 to 0" $ do
+        eval (T_PRED (T_SUCC T_ZERO)) `shouldBe` T_ZERO
+      it "evaluates pred succ succ 0 to succ 0" $ do
+        eval (T_PRED (T_SUCC (T_SUCC T_ZERO))) `shouldBe` T_SUCC T_ZERO
+      it "evaluates succ pred 0 to 0" $ do
+        eval (T_SUCC (T_PRED T_ZERO)) `shouldBe` T_ZERO

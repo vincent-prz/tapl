@@ -1,6 +1,6 @@
 module Main where
 
-import Arith.Arith
+import Arith.Parser
 
 main :: IO ()
 main = run

@@ -1,4 +1,4 @@
-module Arith.Arith where
+module Arith.Parser where
 
 import Control.Monad
 import Data.Functor
@@ -94,7 +94,7 @@ parseIsZero =
   try $ do
     p <- (== TOK_IS_ZERO) <$> try anyToken
     n <- parseAST
-    guard p -- TODO: what is guard doing here ?
+    guard p
     pure $ T_IS_ZERO n
 
 parseIfThenElse :: ParserTok Term
