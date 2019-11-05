@@ -22,7 +22,7 @@ main =
       it "parses non trivial conditional" $ do
         fullParser "if succ true then 0 else false" `shouldBe`
           Right (T_IF_THEN_ELSE (T_SUCC T_TRUE) T_ZERO T_FALSE)
-    fdescribe "Arith Evaluating" $ do
+    describe "Arith Evaluating" $ do
       it "evaluates zero" $ do eval T_ZERO `shouldBe` T_ZERO
       it "evaluates succ zero" $ do
         eval (T_SUCC T_ZERO) `shouldBe` T_SUCC T_ZERO
@@ -53,4 +53,14 @@ main =
           T_SUCC T_ZERO
       it "evaluates if iszero 0 then 0 else succ 0 to 0" $ do
         eval (T_IF_THEN_ELSE (T_IS_ZERO T_ZERO) T_ZERO (T_SUCC T_ZERO)) `shouldBe`
+          T_ZERO
+      it "evaluates if true then pred succ 0 else succ 0 to 0" $ do
+        eval (T_IF_THEN_ELSE T_TRUE (T_PRED (T_SUCC T_ZERO)) (T_SUCC T_ZERO)) `shouldBe`
+          T_ZERO
+      it "evaluates if iszero zero then pred succ 0 else succ 0 to 0" $ do
+        eval
+          (T_IF_THEN_ELSE
+             (T_IS_ZERO T_ZERO)
+             (T_PRED (T_SUCC T_ZERO))
+             (T_SUCC T_ZERO)) `shouldBe`
           T_ZERO
