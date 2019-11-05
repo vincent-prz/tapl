@@ -4,20 +4,54 @@ import Arith.Parser (Term(..))
 
 eval :: Term -> Term
 eval term =
-  let newTerm = applyRule term
+  let newTerm = eval1Step term
    in if newTerm == term
         then newTerm
         else eval newTerm
 
-applyRule :: Term -> Term
-applyRule (T_IF_THEN_ELSE T_TRUE t2 _) = t2 -- E-IF-TRUE
-applyRule (T_IF_THEN_ELSE T_FALSE _ t3) = t3 -- E-IF-FALSE
-applyRule (T_IF_THEN_ELSE t t2 t3) = T_IF_THEN_ELSE (eval t) t2 t3 -- E-IF
-applyRule (T_SUCC t) = T_SUCC (applyRule t) -- E-SUCC
-applyRule (T_PRED T_ZERO) = T_ZERO -- E-PREDZERO
-applyRule (T_PRED (T_SUCC t)) = applyRule t -- E-PREDSUCC
-applyRule (T_PRED t) = T_PRED (applyRule t) -- E-PRED
-applyRule (T_IS_ZERO T_ZERO) = T_TRUE -- E-ISZEROZERO
-applyRule (T_IS_ZERO (T_SUCC t)) = T_FALSE -- E-ISZEROSUCC
-applyRule (T_IS_ZERO t) = T_IS_ZERO (applyRule t) -- E-ISZERO
-applyRule term = term -- already in normal form, nothing to do
+eval1Step :: Term -> Term
+eval1Step (T_IF_THEN_ELSE T_TRUE t2 _) = t2 -- E-IF-TRUE
+eval1Step (T_IF_THEN_ELSE T_FALSE _ t3) = t3 -- E-IF-FALSE
+eval1Step (T_IF_THEN_ELSE t t2 t3) = T_IF_THEN_ELSE (eval t) t2 t3 -- E-IF
+eval1Step (T_SUCC t) = T_SUCC (eval1Step t) -- E-SUCC
+eval1Step (T_PRED T_ZERO) = T_ZERO -- E-PREDZERO
+eval1Step (T_PRED (T_SUCC t)) = eval1Step t -- E-PREDSUCC
+eval1Step (T_PRED t) = T_PRED (eval1Step t) -- E-PRED
+eval1Step (T_IS_ZERO T_ZERO) = T_TRUE -- E-ISZEROZERO
+eval1Step (T_IS_ZERO (T_SUCC t)) = T_FALSE -- E-ISZEROSUCC
+eval1Step (T_IS_ZERO t) = T_IS_ZERO (eval1Step t) -- E-ISZERO
+eval1Step term = term -- already in normal form, nothing to do
+
+-- everything below is only needed for the eval big step mode of evaluation
+isNumericalValue :: Term -> Bool
+isNumericalValue T_ZERO = True
+isNumericalValue (T_SUCC t) = isNumericalValue t
+isNumericalValue _ = False
+
+isBooleanValue :: Term -> Bool
+isBooleanValue T_TRUE = True
+isBooleanValue T_FALSE = True
+isBooleanValue _ = False
+
+isValue :: Term -> Bool
+isValue t = isNumericalValue t || isBooleanValue t
+
+evalBigStep :: Term -> Term
+evalBigStep t
+  | isValue t = t -- B-Value
+evalBigStep (T_IF_THEN_ELSE t1 t2 t3) =
+  let cond = evalBigStep t1
+   in if cond == T_TRUE
+        then evalBigStep t2 -- B-IFTRUE
+        else evalBigStep t3 -- B-IFFALSE
+evalBigStep (T_SUCC t) = T_SUCC (evalBigStep t) --B-SUCC
+evalBigStep (T_PRED t) =
+  let value = evalBigStep t
+   in case value of
+        T_ZERO -> T_ZERO -- B-PREDZERO
+        T_SUCC v -> v -- BPREDSUCC
+evalBigStep (T_IS_ZERO t) =
+  let value = evalBigStep t
+   in case value of
+        T_ZERO -> T_TRUE -- B-ISZEROZERO
+        T_SUCC v -> T_FALSE -- BISZEROSUCC
