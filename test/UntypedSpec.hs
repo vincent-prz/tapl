@@ -28,3 +28,8 @@ spec = do
          T_APPLICATION
            (T_VARIABLE "s")
            (T_APPLICATION (T_VARIABLE "t") (T_VARIABLE "u")))
+    it "parses double abstraction" $ do
+      fullParser "\\x.\\y.x y" `shouldBe`
+        (Right $
+         T_ABSTRACTION
+           (T_ABSTRACTION (T_APPLICATION (T_VARIABLE "x") (T_VARIABLE "y"))))

@@ -53,7 +53,17 @@ data Term
   | T_IF_THEN_ELSE Term
                    Term
                    Term
-  deriving (Show, Eq)
+  deriving (Eq)
+
+instance Show Term where
+  show T_TRUE = "true"
+  show T_FALSE = "false"
+  show T_ZERO = "0"
+  show (T_SUCC t) = "succ (" ++ show t ++ ")"
+  show (T_PRED t) = "pred (" ++ show t ++ ")"
+  show (T_IS_ZERO t) = "iszero (" ++ show t ++ ")"
+  show (T_IF_THEN_ELSE t1 t2 t3) =
+    "if (" ++ show t1 ++ ") then (" ++ show t2 ++ ") else (" ++ show t3 ++ ")"
 
 type ParserTok a = Parsec [Token] () a
 
