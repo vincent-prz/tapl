@@ -55,7 +55,7 @@ parseTokVariable =
   try $ do
     tok <- anyToken
     case tok of
-      TOK_VARIABLE s -> pure (T_VARIABLE s)
+      TOK_VARIABLE s -> return (T_VARIABLE s)
       _ -> fail $ "attempted parsing variable, but got " ++ show tok
 
 parseAbstraction :: ParserTok Term
@@ -74,10 +74,23 @@ parseApplication =
   let parseVarOrAbs = parseTokVariable <|> parseAbstraction
    in try $ T_APPLICATION <$> parseVarOrAbs <*> parseVarOrAbs
 
+parseParens :: ParserTok Term
+parseParens =
+  try $ do
+    p1 <- (== TOK_LEFT_PAREN) <$> anyToken
+    subTerm <- parseAST
+    p2 <- (== TOK_RIGHT_PAREN) <$> anyToken
+    guard p1
+    guard p2
+    return subTerm
+
 -- need to parseApplication first to prevent it from parsing the left term of
 -- an application as variable or abstraction
 parseAST :: ParserTok Term
-parseAST = parseApplication <|> parseTokVariable <|> parseAbstraction
+parseAST =
+  foldl1 T_APPLICATION <$>
+  many
+    (parseApplication <|> parseTokVariable <|> parseAbstraction <|> parseParens)
 
 -- parsing + lexing
 fullParser :: String -> Either ParseError Term

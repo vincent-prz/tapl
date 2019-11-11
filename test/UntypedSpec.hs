@@ -13,6 +13,18 @@ spec = do
     it "parses simple application" $ do
       fullParser "x y" `shouldBe`
         (Right $ T_APPLICATION (T_VARIABLE "x") (T_VARIABLE "y"))
-    it "parses application of identity" $ do
+    it "parses abstraction of simple application" $ do
       fullParser "\\x.x y" `shouldBe`
-        (Right $ T_APPLICATION (T_ABSTRACTION (T_VARIABLE "x")) (T_VARIABLE "y"))
+        (Right $ T_ABSTRACTION (T_APPLICATION (T_VARIABLE "x") (T_VARIABLE "y")))
+    it "parses application associatively to the left" $ do
+      fullParser "s t u" `shouldBe`
+        (Right $
+         T_APPLICATION
+           (T_APPLICATION (T_VARIABLE "s") (T_VARIABLE "t"))
+           (T_VARIABLE "u"))
+    it "parses application with parens" $ do
+      fullParser "s (t u)" `shouldBe`
+        (Right $
+         T_APPLICATION
+           (T_VARIABLE "s")
+           (T_APPLICATION (T_VARIABLE "t") (T_VARIABLE "u")))
