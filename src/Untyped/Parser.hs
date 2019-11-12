@@ -38,7 +38,7 @@ parseTokens :: Parser [Token]
 parseTokens = many (parseToken <* whitespace)
 
 lexer :: String -> Either ParseError [Token]
-lexer input = parse (parseTokens <* eof) "lexing error" input
+lexer input = parse (parseTokens) "lexing error" input
 
 -- parse
 data Term
@@ -95,7 +95,8 @@ parseAST :: ParserTok Term
 parseAST =
   foldl1 T_APPLICATION <$>
   many
-    (parseApplication <|> parseTokVariable <|> parseAbstraction <|> parseParens)
+    (parseApplication <|> parseTokVariable <|> parseAbstraction <|> parseParens) <*
+  eof
 
 -- parsing + lexing
 fullParser :: String -> Either ParseError Term
