@@ -44,9 +44,15 @@ lexer input = parse (parseTokens <* eof) "lexing error" input
 data Term
   = T_VARIABLE String
   | T_ABSTRACTION Term
+                  Term
   | T_APPLICATION Term
                   Term
-  deriving (Eq, Show)
+  deriving (Eq)
+
+instance Show Term where
+  show (T_VARIABLE s) = s
+  show (T_ABSTRACTION t1 t2) = "\\" ++ show t1 ++ "." ++ show t2
+  show (T_APPLICATION t1 t2) = "(" ++ show t1 ++ ") " ++ "(" ++ show t2 ++ ")"
 
 type ParserTok a = Parsec [Token] () a
 
@@ -62,12 +68,11 @@ parseAbstraction :: ParserTok Term
 parseAbstraction =
   try $ do
     p1 <- (== TOK_LAMBDA) <$> anyToken
-    p2 <- isVariable <$> anyToken
-    p3 <- (== TOK_DOT) <$> anyToken
+    boundVariable <- parseTokVariable
+    p2 <- (== TOK_DOT) <$> anyToken
     guard p1
     guard p2
-    guard p3
-    T_ABSTRACTION <$> parseAST
+    T_ABSTRACTION boundVariable <$> parseAST
 
 parseApplication :: ParserTok Term
 parseApplication =

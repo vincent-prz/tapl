@@ -7,29 +7,16 @@ spec :: Spec
 spec = do
   describe "Untyped Parsing" $ do
     it "parses simple variable" $ do
-      fullParser "x" `shouldBe` (Right $ T_VARIABLE "x")
+      fmap show (fullParser "x") `shouldBe` (Right "x")
     it "parses identity lambda" $ do
-      fullParser "\\x.x" `shouldBe` (Right $ T_ABSTRACTION (T_VARIABLE "x"))
+      fmap show (fullParser "\\x.x") `shouldBe` (Right "\\x.x")
     it "parses simple application" $ do
-      fullParser "x y" `shouldBe`
-        (Right $ T_APPLICATION (T_VARIABLE "x") (T_VARIABLE "y"))
+      fmap show (fullParser "x y") `shouldBe` (Right "(x) (y)")
     it "parses abstraction of simple application" $ do
-      fullParser "\\x.x y" `shouldBe`
-        (Right $ T_ABSTRACTION (T_APPLICATION (T_VARIABLE "x") (T_VARIABLE "y")))
+      fmap show (fullParser "\\x.x y") `shouldBe` (Right "\\x.(x) (y)")
     it "parses application associatively to the left" $ do
-      fullParser "s t u" `shouldBe`
-        (Right $
-         T_APPLICATION
-           (T_APPLICATION (T_VARIABLE "s") (T_VARIABLE "t"))
-           (T_VARIABLE "u"))
+      fmap show (fullParser "s t u") `shouldBe` (Right "((s) (t)) (u)")
     it "parses application with parens" $ do
-      fullParser "s (t u)" `shouldBe`
-        (Right $
-         T_APPLICATION
-           (T_VARIABLE "s")
-           (T_APPLICATION (T_VARIABLE "t") (T_VARIABLE "u")))
+      fmap show (fullParser "s (t u)") `shouldBe` (Right "(s) ((t) (u))")
     it "parses double abstraction" $ do
-      fullParser "\\x.\\y.x y" `shouldBe`
-        (Right $
-         T_ABSTRACTION
-           (T_ABSTRACTION (T_APPLICATION (T_VARIABLE "x") (T_VARIABLE "y"))))
+      fmap show (fullParser "\\x.\\y.x y") `shouldBe` (Right "\\x.\\y.(x) (y)")
