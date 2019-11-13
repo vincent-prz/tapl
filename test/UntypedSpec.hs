@@ -23,6 +23,9 @@ spec = do
       fmap show (fullParser "\\x.\\y.x y") `shouldBe` Right "\\x.\\y.(x y)"
     it "parses application of lambda" $ do
       fmap show (fullParser "(\\x.x) y") `shouldBe` Right "(\\x.x y)"
+    it "parses application with higher precedence than abstraction" $ do
+      fmap show (fullParser "\\x.\\y.x y x") `shouldBe`
+        Right "\\x.\\y.((x y) x)"
     it "fails when given lambda with malformed bound variable" $ do
       isLeft (fullParser "\\x y.x") `shouldBe` True
     it "fails when given x.x" $ do isLeft (fullParser "x.x") `shouldBe` True
