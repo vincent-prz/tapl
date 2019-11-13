@@ -52,11 +52,40 @@ data Term
 instance Show Term where
   show (T_VARIABLE s) = s
   show (T_ABSTRACTION t1 t2) = "\\" ++ show t1 ++ "." ++ show t2
-  show (T_APPLICATION t1 t2) = "(" ++ show t1 ++ ") " ++ "(" ++ show t2 ++ ")"
+  show (T_APPLICATION t1 t2) = "(" ++ show t1 ++ " " ++ show t2 ++ ")"
 
 type ParserTok a = Parsec [Token] () a
 
-parseTokVariable :: ParserTok Term
+--- LEFT RECURSION ELIMINATION
+parseExpression :: ParserTok Term
+parseExpression = parseAbstraction
+
+parseAbstraction :: ParserTok Term
+parseAbstraction =
+  try $ do
+    boundedVars <- many parseBoundedVariable
+    body <- parseApplication
+    return $ foldr T_ABSTRACTION body boundedVars
+
+parseBoundedVariable :: ParserTok Term
+parseBoundedVariable =
+  try $ do
+    p1 <- (== TOK_LAMBDA) <$> anyToken
+    boundVariable <- parseTokVariable
+    p2 <- (== TOK_DOT) <$> anyToken
+    guard p1
+    guard p2
+    return boundVariable
+
+parseApplication :: ParserTok Term
+parseApplication =
+  try $ do
+    operand <- primary
+    args <- many primary
+    return $ foldl T_APPLICATION operand args
+
+primary = parseTokVariable <|> parseParens
+
 parseTokVariable =
   try $ do
     tok <- anyToken
@@ -64,39 +93,19 @@ parseTokVariable =
       TOK_VARIABLE s -> return (T_VARIABLE s)
       _ -> fail $ "attempted parsing variable, but got " ++ show tok
 
-parseAbstraction :: ParserTok Term
-parseAbstraction =
-  try $ do
-    p1 <- (== TOK_LAMBDA) <$> anyToken
-    boundVariable <- parseTokVariable
-    p2 <- (== TOK_DOT) <$> anyToken
-    guard p1
-    guard p2
-    T_ABSTRACTION boundVariable <$> parseAST
-
-parseApplication :: ParserTok Term
-parseApplication =
-  let parseVarOrAbs = parseTokVariable <|> parseAbstraction
-   in try $ T_APPLICATION <$> parseVarOrAbs <*> parseVarOrAbs
-
 parseParens :: ParserTok Term
 parseParens =
   try $ do
     p1 <- (== TOK_LEFT_PAREN) <$> anyToken
-    subTerm <- parseAST
+    expr <- parseExpression
     p2 <- (== TOK_RIGHT_PAREN) <$> anyToken
     guard p1
     guard p2
-    return subTerm
+    return expr
 
--- need to parseApplication first to prevent it from parsing the left term of
--- an application as variable or abstraction
+-- END LEFT RECURSION ELIMINATION
 parseAST :: ParserTok Term
-parseAST =
-  foldl1 T_APPLICATION <$>
-  many
-    (parseApplication <|> parseTokVariable <|> parseAbstraction <|> parseParens) <*
-  eof
+parseAST = parseExpression <* eof
 
 -- parsing + lexing
 fullParser :: String -> Either ParseError Term
