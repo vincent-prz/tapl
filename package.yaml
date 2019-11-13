@@ -38,6 +38,7 @@ executables:
     - -Wall
     dependencies:
     - tapl
+    - haskeline
 
 tests:
   tapl-test:

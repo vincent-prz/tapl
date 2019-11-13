@@ -1,18 +1,24 @@
 module Main where
 
+import System.Console.Haskeline
 import Untyped.Parser
 
-repl :: IO ()
-repl = do
-  input <- getLine
+processInput :: String -> String
+processInput input =
   let parseResult = Untyped.Parser.fullParser input
-  case parseResult of
-    Left err -> print err
-    Right t -> print t
-    -- Right t -> print $ eval t
-  repl
+   in case parseResult of
+        Left err -> show err
+        Right t -> show t
 
 main :: IO ()
-main = do
-  putStrLn "Untyped lambda calculus REPL"
-  repl
+main = putStrLn "Untyped lambda calculus REPL" >> runInputT defaultSettings loop
+  where
+    loop :: InputT IO ()
+    loop = do
+      minput <- getInputLine "> "
+      case minput of
+        Nothing -> return ()
+        Just "quit" -> return ()
+        Just input -> do
+          outputStrLn $ processInput input
+          loop
