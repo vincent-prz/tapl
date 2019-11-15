@@ -32,9 +32,9 @@ data RuntimeError =
   deriving (Eq, Show)
 
 removeNames :: Context -> Term -> Either RuntimeError NamelessTerm
-removeNames c (T_VARIABLE s) =
+removeNames c (T_VAR s) =
   maybeToEither RemoveNameError $ fmap NT_VAR (elemIndex s c)
-removeNames c (T_ABSTRACTION _ _) = Right (NT_ABS (NT_VAR 0))
+removeNames c (T_ABS _ _) = Right (NT_ABS (NT_VAR 0))
 
 restoreNames :: Context -> NamelessTerm -> Term
 restoreNames c t = undefined

@@ -32,10 +32,10 @@ spec = do
     it "fails when given x.x" $ do isLeft (fullParser "x.x") `shouldBe` True
   describe "Untyped: convert to nameless terms" $ do
     it "converts simple variable" $ do
-      removeNames ["x"] (T_VARIABLE "x") `shouldBe` Right (NT_VAR 0)
+      removeNames ["x"] (T_VAR "x") `shouldBe` Right (NT_VAR 0)
     it "converts simple abstraction" $ do
-      removeNames [] (T_ABSTRACTION (T_VARIABLE "x") (T_VARIABLE "x")) `shouldBe`
+      removeNames [] (T_ABS (T_VAR "x") (T_VAR "x")) `shouldBe`
         Right (NT_ABS (NT_VAR 0))
     --it "converts abstraction with free variable" $ do
-    --  removeNames ["y"] (T_ABSTRACTION (T_VARIABLE "x") (T_APPLICATION "x")) `shouldBe`
+    --  removeNames ["y"] (T_ABS (T_VAR "x") (T_APP "x")) `shouldBe`
     --    Right (NT_ABS (NT_VAR 0))

@@ -7,7 +7,7 @@ import Text.ParserCombinators.Parsec
 
 -- Lexing
 data Token
-  = TOK_VARIABLE String
+  = TOK_VAR String
   | TOK_LAMBDA
   | TOK_DOT
   | TOK_LEFT_PAREN
@@ -15,11 +15,11 @@ data Token
   deriving (Eq, Show)
 
 isVariable :: Token -> Bool
-isVariable (TOK_VARIABLE _) = True
+isVariable (TOK_VAR _) = True
 isVariable _ = False
 
 parseVariable :: Parser Token
-parseVariable = TOK_VARIABLE <$> many1 alphaNum
+parseVariable = TOK_VAR <$> many1 alphaNum
 
 parseToken :: Parser Token
 parseToken =
@@ -42,17 +42,17 @@ lexer input = parse (parseTokens) "lexing error" input
 
 -- parse
 data Term
-  = T_VARIABLE String
-  | T_ABSTRACTION Term
-                  Term
-  | T_APPLICATION Term
-                  Term
+  = T_VAR String
+  | T_ABS Term
+          Term
+  | T_APP Term
+          Term
   deriving (Eq)
 
 instance Show Term where
-  show (T_VARIABLE s) = s
-  show (T_ABSTRACTION t1 t2) = "\\" ++ show t1 ++ "." ++ show t2
-  show (T_APPLICATION t1 t2) = "(" ++ show t1 ++ " " ++ show t2 ++ ")"
+  show (T_VAR s) = s
+  show (T_ABS t1 t2) = "\\" ++ show t1 ++ "." ++ show t2
+  show (T_APP t1 t2) = "(" ++ show t1 ++ " " ++ show t2 ++ ")"
 
 type ParserTok a = Parsec [Token] () a
 
@@ -65,7 +65,7 @@ parseAbstraction =
   try $ do
     boundedVars <- many parseBoundedVariable
     body <- parseApplication
-    return $ foldr T_ABSTRACTION body boundedVars
+    return $ foldr T_ABS body boundedVars
 
 parseBoundedVariable :: ParserTok Term
 parseBoundedVariable =
@@ -82,7 +82,7 @@ parseApplication =
   try $ do
     operand <- primary
     args <- many primary
-    return $ foldl T_APPLICATION operand args
+    return $ foldl T_APP operand args
 
 primary = parseTokVariable <|> parseParens
 
@@ -90,7 +90,7 @@ parseTokVariable =
   try $ do
     tok <- anyToken
     case tok of
-      TOK_VARIABLE s -> return (T_VARIABLE s)
+      TOK_VAR s -> return (T_VAR s)
       _ -> fail $ "attempted parsing variable, but got " ++ show tok
 
 parseParens :: ParserTok Term
