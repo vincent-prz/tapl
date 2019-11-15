@@ -1,6 +1,7 @@
 module Main where
 
 import System.Console.Haskeline
+import Untyped.Evaluator
 import Untyped.Parser
 
 processInput :: String -> String
@@ -8,7 +9,7 @@ processInput input =
   let parseResult = Untyped.Parser.fullParser input
    in case parseResult of
         Left err -> show err
-        Right t -> show t
+        Right t -> show (eval t)
 
 main :: IO ()
 main = putStrLn "Untyped lambda calculus REPL" >> runInputT defaultSettings loop

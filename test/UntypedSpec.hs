@@ -1,9 +1,27 @@
 module UntypedSpec where
 
+import Data.Bifunctor (first)
 import Data.Either (isLeft)
+import Data.List (elemIndex)
+import Data.Maybe (fromMaybe)
 import Test.Hspec
 import Untyped.Evaluator
 import Untyped.Parser
+
+-- dependency injection of name generator
+ngMock :: NameGenerator
+ngMock [] = "a"
+ngMock (h:_) =
+  let letters = map (: []) ['a' .. 'z']
+      indexOfLast :: Maybe Int
+      indexOfLast = elemIndex h letters
+      newLetter :: Maybe String
+      newLetter = ((+ 1) <$> indexOfLast) >>= atMay letters
+   in fromMaybe "a" newLetter --FIXME: swallowing error here
+
+-- FIXME: deal with errors correctly here
+parseThenEval :: String -> Either RuntimeError Term
+parseThenEval input = first (const RemoveNameError) (fullParser input) >>= eval
 
 spec :: Spec
 spec = do
@@ -27,15 +45,39 @@ spec = do
     it "parses application with higher precedence than abstraction" $ do
       fmap show (fullParser "\\x.\\y.x y x") `shouldBe`
         Right "\\x.\\y.((x y) x)"
+    it "parses application of id to id" $ do
+      fmap show (fullParser "(\\x.x) (\\y.y)") `shouldBe` Right "(\\x.x \\y.y)"
+    it "parses application of id to id without parens" $ do
+      fmap show (fullParser "(\\x.x) \\y.y") `shouldBe` Right "(\\x.x \\y.y)"
     it "fails when given lambda with malformed bound variable" $ do
       isLeft (fullParser "\\x y.x") `shouldBe` True
     it "fails when given x.x" $ do isLeft (fullParser "x.x") `shouldBe` True
   describe "Untyped: convert to nameless terms" $ do
     it "converts simple variable" $ do
       removeNames ["x"] (T_VAR "x") `shouldBe` Right (NT_VAR 0)
+    it "converts simple application" $ do
+      removeNames ["x", "y"] (T_APP (T_VAR "x") (T_VAR "y")) `shouldBe`
+        Right (NT_APP (NT_VAR 0) (NT_VAR 1))
     it "converts simple abstraction" $ do
       removeNames [] (T_ABS (T_VAR "x") (T_VAR "x")) `shouldBe`
         Right (NT_ABS (NT_VAR 0))
-    --it "converts abstraction with free variable" $ do
-    --  removeNames ["y"] (T_ABS (T_VAR "x") (T_APP "x")) `shouldBe`
-    --    Right (NT_ABS (NT_VAR 0))
+    it "converts abstraction with free variable" $ do
+      removeNames ["y"] (T_ABS (T_VAR "x") (T_APP (T_VAR "x") (T_VAR "y"))) `shouldBe`
+        Right (NT_ABS (NT_APP (NT_VAR 0) (NT_VAR 1)))
+  describe "Untyped: convert to named terms" $ do
+    it "renames simple variable" $ do
+      restoreNames ngMock ["x"] (NT_VAR 0) `shouldBe` Right (T_VAR "x")
+    it "renames simple application" $ do
+      restoreNames ngMock ["x", "y"] (NT_APP (NT_VAR 0) (NT_VAR 1)) `shouldBe`
+        Right (T_APP (T_VAR "x") (T_VAR "y"))
+    it "renames simple abstraction" $ do
+      restoreNames ngMock [] (NT_ABS (NT_VAR 0)) `shouldBe`
+        Right (T_ABS (T_VAR "a") (T_VAR "a"))
+    it "renames abstraction with free variable" $ do
+      restoreNames ngMock ["a"] (NT_ABS (NT_APP (NT_VAR 0) (NT_VAR 1))) `shouldBe`
+        Right (T_ABS (T_VAR "b") (T_APP (T_VAR "b") (T_VAR "a")))
+  describe "Untyped Parsing + Evaluating" $ do
+    it "evaluates identity" $ do
+      fmap show (parseThenEval "\\x.x") `shouldBe` Right "\\a.a"
+    it "evaluates identity applied to itself" $ do
+      fmap show (parseThenEval "(\\x.x) (\\x.x)") `shouldBe` Right "\\a.a"
