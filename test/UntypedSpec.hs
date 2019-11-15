@@ -2,6 +2,7 @@ module UntypedSpec where
 
 import Data.Either (isLeft)
 import Test.Hspec
+import Untyped.Evaluator
 import Untyped.Parser
 
 spec :: Spec
@@ -29,3 +30,12 @@ spec = do
     it "fails when given lambda with malformed bound variable" $ do
       isLeft (fullParser "\\x y.x") `shouldBe` True
     it "fails when given x.x" $ do isLeft (fullParser "x.x") `shouldBe` True
+  describe "Untyped: convert to nameless terms" $ do
+    it "converts simple variable" $ do
+      removeNames ["x"] (T_VARIABLE "x") `shouldBe` Right (NT_VAR 0)
+    it "converts simple abstraction" $ do
+      removeNames [] (T_ABSTRACTION (T_VARIABLE "x") (T_VARIABLE "x")) `shouldBe`
+        Right (NT_ABS (NT_VAR 0))
+    --it "converts abstraction with free variable" $ do
+    --  removeNames ["y"] (T_ABSTRACTION (T_VARIABLE "x") (T_APPLICATION "x")) `shouldBe`
+    --    Right (NT_ABS (NT_VAR 0))
