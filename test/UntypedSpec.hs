@@ -21,7 +21,8 @@ ngMock (h:_) =
 
 -- FIXME: deal with errors correctly here
 parseThenEval :: String -> Either RuntimeError Term
-parseThenEval input = first (const RemoveNameError) (fullParser input) >>= eval
+parseThenEval input =
+  first (const RemoveNameError) (fullParser input) >>= evalWithNameGen ngMock
 
 spec :: Spec
 spec = do

@@ -56,37 +56,56 @@ instance Show Term where
 
 type ParserTok a = Parsec [Token] () a
 
---- LEFT RECURSION ELIMINATION
 parseExpression :: ParserTok Term
-parseExpression = parseAbstraction
+parseExpression =
+  parseAbstraction <|> parseApplication <|> parseTokVar <|> parseParens
 
 parseAbstraction :: ParserTok Term
 parseAbstraction =
   try $ do
-    boundedVars <- many parseBoundedVariable
-    body <- parseApplication
-    return $ foldr T_ABS body boundedVars
-
-parseBoundedVariable :: ParserTok Term
-parseBoundedVariable =
-  try $ do
     p1 <- (== TOK_LAMBDA) <$> anyToken
-    boundVariable <- parseTokVariable
+    boundVariable <- parseTokVar
     p2 <- (== TOK_DOT) <$> anyToken
     guard p1
     guard p2
-    return boundVariable
+    body <- parseExpression
+    return $ T_ABS boundVariable body
 
 parseApplication :: ParserTok Term
-parseApplication =
+parseApplication = parseApplication1 <|> parseApplication2 <|> parseApplication3
+
+parseApplication1 =
   try $ do
-    operand <- primary
-    args <- many primary
-    return $ foldl T_APP operand args
+    abs <- parseAbstraction
+    expr <- parseExpression
+    app' <- parseApplication'
+    case app' of
+      Nothing -> return $ T_APP abs expr
+      Just t -> return $ T_APP (T_APP abs expr) t
 
-primary = parseTokVariable <|> parseParens
+parseApplication2 =
+  try $ do
+    var <- parseTokVar
+    expr <- parseExpression
+    app' <- parseApplication'
+    case app' of
+      Nothing -> return $ T_APP var expr
+      Just t -> return $ T_APP (T_APP var expr) t
 
-parseTokVariable =
+parseApplication3 =
+  try $ do
+    parens <- parseParens
+    expr <- parseExpression
+    app' <- parseApplication'
+    case app' of
+      Nothing -> return $ T_APP parens expr
+      Just t -> return $ T_APP (T_APP parens expr) t
+
+parseApplication' :: ParserTok (Maybe Term)
+parseApplication' = return Nothing -- FIX THIS
+
+parseTokVar :: ParserTok Term
+parseTokVar =
   try $ do
     tok <- anyToken
     case tok of
@@ -103,7 +122,6 @@ parseParens =
     guard p2
     return expr
 
--- END LEFT RECURSION ELIMINATION
 parseAST :: ParserTok Term
 parseAST = parseExpression <* eof
 

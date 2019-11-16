@@ -78,8 +78,11 @@ substitution j s (NT_APP t1 t2) =
   NT_APP (substitution j s t1) (substitution j s t2)
 
 eval :: Term -> Either RuntimeError Term
-eval =
-  restoreNames genNewVarName [] <=< return . evalNameless <=< removeNames []
+eval = evalWithNameGen genNewVarName
+
+evalWithNameGen :: NameGenerator -> Term -> Either RuntimeError Term
+evalWithNameGen ng =
+  restoreNames ng [] <=< return . evalNameless <=< removeNames []
 
 evalNameless :: NamelessTerm -> NamelessTerm
 evalNameless term =
