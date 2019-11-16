@@ -43,7 +43,7 @@ spec = do
       fmap show (fullParser "\\x.\\y.x y") `shouldBe` Right "\\x.\\y.(x y)"
     it "parses application of lambda" $ do
       fmap show (fullParser "(\\x.x) y") `shouldBe` Right "(\\x.x y)"
-    it "parses application with higher precedence than abstraction" $ do
+    it "parses application with bodies as far to the right as possible" $ do
       fmap show (fullParser "\\x.\\y.x y x") `shouldBe`
         Right "\\x.\\y.((x y) x)"
     it "parses application of id to id" $ do

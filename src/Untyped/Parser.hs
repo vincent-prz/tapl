@@ -74,6 +74,14 @@ parseAbstraction =
 parseApplication :: ParserTok Term
 parseApplication = parseApplication1 <|> parseApplication2 <|> parseApplication3
 
+--parseApplication =
+--  try $ do
+--    operand <- primary
+--    args <- many primary
+--    return $ foldl T_APP operand args
+--
+primary = try parseTokVar <|> try parseParens <|> try parseAbstraction
+
 parseApplication1 =
   try $ do
     abs <- parseAbstraction
@@ -86,11 +94,12 @@ parseApplication1 =
 parseApplication2 =
   try $ do
     var <- parseTokVar
-    expr <- parseExpression
+    --expr <- parseExpression
+    rest <- many primary
     app' <- parseApplication'
     case app' of
-      Nothing -> return $ T_APP var expr
-      Just t -> return $ T_APP (T_APP var expr) t
+      Nothing -> return $ foldl T_APP var rest
+      --Just t -> return $ T_APP (T_APP var expr) t
 
 parseApplication3 =
   try $ do
