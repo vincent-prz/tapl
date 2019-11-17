@@ -9,7 +9,13 @@ processInput input =
   let parseResult = Untyped.Parser.fullParser input
    in case parseResult of
         Left err -> show err
-        Right t -> show (eval t)
+        Right t -> reduceTerm t
+
+reduceTerm :: Term -> String
+reduceTerm t =
+  case eval t of
+    Left err -> show err
+    Right t' -> show t'
 
 main :: IO ()
 main = putStrLn "Untyped lambda calculus REPL" >> runInputT defaultSettings loop

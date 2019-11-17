@@ -31,13 +31,14 @@ maybeToEither b Nothing = Left b
 maybeToEither _ (Just a) = Right a
 
 data RuntimeError
-  = RemoveNameError
+  = ParsingError -- FIXME:only here for tests, remove this
+  | UnboundVariable String
   | RestoreNameError
   deriving (Eq, Show)
 
 removeNames :: Context -> Term -> Either RuntimeError NamelessTerm
 removeNames c (T_VAR s) =
-  maybeToEither RemoveNameError $ fmap NT_VAR (elemIndex s c)
+  maybeToEither (UnboundVariable s) $ fmap NT_VAR (elemIndex s c)
 removeNames c (T_APP t1 t2) = NT_APP <$> removeNames c t1 <*> removeNames c t2
 removeNames c (T_ABS (T_VAR s) t) = NT_ABS <$> removeNames (s : c) t
 

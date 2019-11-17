@@ -22,7 +22,7 @@ ngMock (h:_) =
 -- FIXME: deal with errors correctly here
 parseThenEval :: String -> Either RuntimeError Term
 parseThenEval input =
-  first (const RemoveNameError) (fullParser input) >>= evalWithNameGen ngMock
+  first (const ParsingError) (fullParser input) >>= evalWithNameGen ngMock
 
 spec :: Spec
 spec = do
@@ -84,3 +84,18 @@ spec = do
       fmap show (parseThenEval "\\x.x") `shouldBe` Right "\\a.a"
     it "evaluates identity applied to itself" $ do
       fmap show (parseThenEval "(\\x.x) (\\x.x)") `shouldBe` Right "\\a.a"
+    it "evaluates definition of true" $ do
+      fmap show (parseThenEval "\\t.\\f.t") `shouldBe` Right "\\a.\\b.a"
+    it "evaluates not true to false" $ do
+      fmap show (parseThenEval "(\\b. b (\\t.\\f.f) (\\t.\\f.t)) \\t.\\f.t") `shouldBe`
+        Right "\\a.\\b.b"
+    it "evaluates not false to true" $ do
+      fmap show (parseThenEval "(\\b. b (\\t.\\f.f) (\\t.\\f.t)) \\t.\\f.f") `shouldBe`
+        Right "\\a.\\b.a"
+    it "evaluates succ zero to a term equivalent to one" $ do
+      fmap show (parseThenEval "(\\c.\\s.\\z.s (c s z)) \\s.\\z.z") `shouldBe`
+        Right "\\a.\\b.(a ((\\c.\\d.d a) b))"
+    it "fails on unbound variable" $ do
+      fmap show (parseThenEval "x") `shouldBe` Left (UnboundVariable "x")
+    it "fails on unbound variable inside simple application" $ do
+      fmap show (parseThenEval "\\x.x y") `shouldBe` Left (UnboundVariable "y")
