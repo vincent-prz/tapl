@@ -71,47 +71,16 @@ parseAbstraction =
     body <- parseExpression
     return $ T_ABS boundVariable body
 
+-- remove left recursion and keep associativity at the same time.
+-- See https://craftinginterpreters.com/parsing-expressions.html
 parseApplication :: ParserTok Term
-parseApplication = parseApplication1 <|> parseApplication2 <|> parseApplication3
-
---parseApplication =
---  try $ do
---    operand <- primary
---    args <- many primary
---    return $ foldl T_APP operand args
---
-primary = try parseTokVar <|> try parseParens <|> try parseAbstraction
-
-parseApplication1 =
+parseApplication =
   try $ do
-    abs <- parseAbstraction
-    expr <- parseExpression
-    app' <- parseApplication'
-    case app' of
-      Nothing -> return $ T_APP abs expr
-      Just t -> return $ T_APP (T_APP abs expr) t
+    operand <- primary
+    args <- many primary
+    return $ foldl T_APP operand args
 
-parseApplication2 =
-  try $ do
-    var <- parseTokVar
-    --expr <- parseExpression
-    rest <- many primary
-    app' <- parseApplication'
-    case app' of
-      Nothing -> return $ foldl T_APP var rest
-      --Just t -> return $ T_APP (T_APP var expr) t
-
-parseApplication3 =
-  try $ do
-    parens <- parseParens
-    expr <- parseExpression
-    app' <- parseApplication'
-    case app' of
-      Nothing -> return $ T_APP parens expr
-      Just t -> return $ T_APP (T_APP parens expr) t
-
-parseApplication' :: ParserTok (Maybe Term)
-parseApplication' = return Nothing -- FIX THIS
+primary = parseTokVar <|> parseParens <|> parseAbstraction
 
 parseTokVar :: ParserTok Term
 parseTokVar =

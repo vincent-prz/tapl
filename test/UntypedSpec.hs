@@ -37,6 +37,8 @@ spec = do
       fmap show (fullParser "\\x.x y") `shouldBe` Right "\\x.(x y)"
     it "parses application associatively to the left" $ do
       fmap show (fullParser "s t u") `shouldBe` Right "((s t) u)"
+    it "parses application associatively to the left v2" $ do
+      fmap show (fullParser "(\\x.x) t u") `shouldBe` Right "((\\x.x t) u)"
     it "parses application with parens" $ do
       fmap show (fullParser "s (t u)") `shouldBe` Right "(s (t u))"
     it "parses double abstraction" $ do
