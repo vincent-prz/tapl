@@ -96,6 +96,8 @@ spec = do
       fmap show (parseThenEval "(\\c.\\s.\\z.s (c s z)) \\s.\\z.z") `shouldBe`
         Right "\\a.\\b.(a ((\\c.\\d.d a) b))"
     it "prevents variable capture" $ do
+      fmap show (parseThenEval "\\x.(\\x.x) x") `shouldBe` Right "\\a.(\\b.b a)"
+    it "prevents variable capture v2" $ do
       fmap show (parseThenEval "(\\y.\\x.x y) \\x.x") `shouldBe`
         Right "\\a.(a \\b.b)"
     it "fails on unbound variable" $ do
