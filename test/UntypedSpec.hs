@@ -8,8 +8,21 @@ import Test.Hspec
 import Untyped.Evaluator
 import Untyped.Parser
 
+-- dependency injection of name generator
+ngMock :: NameGenerator
+ngMock [] = "a"
+ngMock (h:_) =
+  let letters = map (: []) ['a' .. 'z']
+      indexOfLast :: Maybe Int
+      indexOfLast = elemIndex h letters
+      newLetter :: Maybe String
+      newLetter = ((+ 1) <$> indexOfLast) >>= atMay letters
+   in fromMaybe "a" newLetter --FIXME: swallowing error here
+
+-- FIXME: deal with errors correctly here
 parseThenEval :: String -> Either RuntimeError Term
-parseThenEval input = first (const ParsingError) (fullParser input) >>= eval
+parseThenEval input =
+  first (const ParsingError) (fullParser input) >>= evalWithNameGen ngMock
 
 spec :: Spec
 spec = do
@@ -50,38 +63,38 @@ spec = do
         Right (NT_APP (NT_VAR 0) (NT_VAR 1))
     it "converts simple abstraction" $ do
       removeNames [] (T_ABS (T_VAR "x") (T_VAR "x")) `shouldBe`
-        Right (NT_ABS "x" (NT_VAR 0))
+        Right (NT_ABS (NT_VAR 0))
     it "converts abstraction with free variable" $ do
       removeNames ["y"] (T_ABS (T_VAR "x") (T_APP (T_VAR "x") (T_VAR "y"))) `shouldBe`
-        Right (NT_ABS "x" (NT_APP (NT_VAR 0) (NT_VAR 1)))
+        Right (NT_ABS (NT_APP (NT_VAR 0) (NT_VAR 1)))
   describe "Untyped: convert to named terms" $ do
     it "renames simple variable" $ do
-      restoreNames ["x"] (NT_VAR 0) `shouldBe` Right (T_VAR "x")
+      restoreNames ngMock ["x"] (NT_VAR 0) `shouldBe` Right (T_VAR "x")
     it "renames simple application" $ do
-      restoreNames ["x", "y"] (NT_APP (NT_VAR 0) (NT_VAR 1)) `shouldBe`
+      restoreNames ngMock ["x", "y"] (NT_APP (NT_VAR 0) (NT_VAR 1)) `shouldBe`
         Right (T_APP (T_VAR "x") (T_VAR "y"))
     it "renames simple abstraction" $ do
-      restoreNames [] (NT_ABS "a" (NT_VAR 0)) `shouldBe`
+      restoreNames ngMock [] (NT_ABS (NT_VAR 0)) `shouldBe`
         Right (T_ABS (T_VAR "a") (T_VAR "a"))
     it "renames abstraction with free variable" $ do
-      restoreNames ["a"] (NT_ABS "b" (NT_APP (NT_VAR 0) (NT_VAR 1))) `shouldBe`
+      restoreNames ngMock ["a"] (NT_ABS (NT_APP (NT_VAR 0) (NT_VAR 1))) `shouldBe`
         Right (T_ABS (T_VAR "b") (T_APP (T_VAR "b") (T_VAR "a")))
   describe "Untyped Parsing + Evaluating" $ do
     it "evaluates identity" $ do
-      fmap show (parseThenEval "\\x.x") `shouldBe` Right "\\x.x"
+      fmap show (parseThenEval "\\x.x") `shouldBe` Right "\\a.a"
     it "evaluates identity applied to itself" $ do
-      fmap show (parseThenEval "(\\x.x) (\\x.x)") `shouldBe` Right "\\x.x"
+      fmap show (parseThenEval "(\\x.x) (\\x.x)") `shouldBe` Right "\\a.a"
     it "evaluates definition of true" $ do
-      fmap show (parseThenEval "\\t.\\f.t") `shouldBe` Right "\\t.\\f.t"
+      fmap show (parseThenEval "\\t.\\f.t") `shouldBe` Right "\\a.\\b.a"
     it "evaluates not true to false" $ do
       fmap show (parseThenEval "(\\b. b (\\t.\\f.f) (\\t.\\f.t)) \\t.\\f.t") `shouldBe`
-        Right "\\t.\\f.f"
+        Right "\\a.\\b.b"
     it "evaluates not false to true" $ do
       fmap show (parseThenEval "(\\b. b (\\t.\\f.f) (\\t.\\f.t)) \\t.\\f.f") `shouldBe`
-        Right "\\t.\\f.t"
+        Right "\\a.\\b.a"
     it "evaluates succ zero to a term equivalent to one" $ do
       fmap show (parseThenEval "(\\c.\\s.\\z.s (c s z)) \\s.\\z.z") `shouldBe`
-        Right "\\s.\\z.(s ((\\s.\\z.z s) z))"
+        Right "\\a.\\b.(a ((\\c.\\d.d a) b))"
     it "fails on unbound variable" $ do
       fmap show (parseThenEval "x") `shouldBe` Left (UnboundVariable "x")
     it "fails on unbound variable inside simple application" $ do
