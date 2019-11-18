@@ -19,7 +19,6 @@ ngMock (h:_) =
       newLetter = ((+ 1) <$> indexOfLast) >>= atMay letters
    in fromMaybe "a" newLetter --FIXME: swallowing error here
 
--- FIXME: deal with errors correctly here
 parseThenEval :: String -> Either RuntimeError Term
 parseThenEval input =
   first (const ParsingError) (fullParser input) >>= evalWithNameGen ngMock
@@ -95,6 +94,9 @@ spec = do
     it "evaluates succ zero to a term equivalent to one" $ do
       fmap show (parseThenEval "(\\c.\\s.\\z.s (c s z)) \\s.\\z.z") `shouldBe`
         Right "\\a.\\b.(a ((\\c.\\d.d a) b))"
+    it "prevents variable capture" $ do
+      fmap show (parseThenEval "(\\y.\\x.x y) \\x.x") `shouldBe`
+        Right "\\a.(a \\b.b)"
     it "fails on unbound variable" $ do
       fmap show (parseThenEval "x") `shouldBe` Left (UnboundVariable "x")
     it "fails on unbound variable inside simple application" $ do
