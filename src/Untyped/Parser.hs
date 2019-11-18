@@ -38,7 +38,7 @@ parseTokens :: Parser [Token]
 parseTokens = many (parseToken <* whitespace)
 
 lexer :: String -> Either ParseError [Token]
-lexer input = parse (parseTokens) "lexing error" input
+lexer input = parse (parseTokens <* eof) "lexing error" input
 
 -- parse
 data Term
