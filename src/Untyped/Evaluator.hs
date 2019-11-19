@@ -100,3 +100,26 @@ evalNameless1Step (NT_APP (NT_ABS t12) v2@(NT_ABS _)) =
 evalNameless1Step (NT_APP v1@(NT_ABS _) t2) = NT_APP v1 (evalNameless1Step t2)
 evalNameless1Step (NT_APP t1 t2) = NT_APP (evalNameless t1) t2
 evalNameless1Step t = t
+
+-- beta evaluation
+-- TODO: refactor this with `Strategy` pattern
+evalBeta :: Term -> Either RuntimeError Term
+evalBeta = undefined
+
+evalBetaWithNameGen :: NameGenerator -> Term -> Either RuntimeError Term
+evalBetaWithNameGen ng =
+  restoreNames ng [] <=< return . evalBetaNameless <=< removeNames []
+
+evalBetaNameless :: NamelessTerm -> NamelessTerm
+evalBetaNameless term =
+  let newTerm = evalBetaNameless1Step term
+   in if newTerm == term
+        then newTerm
+        else evalBetaNameless newTerm
+
+evalBetaNameless1Step :: NamelessTerm -> NamelessTerm
+evalBetaNameless1Step (NT_APP (NT_ABS t12) t2) = substitution 0 t2 t12
+evalBetaNameless1Step (NT_APP t1 t2) =
+  NT_APP (evalBetaNameless1Step t1) (evalBetaNameless1Step t2)
+evalBetaNameless1Step (NT_ABS t) = NT_ABS (evalBetaNameless1Step t)
+evalBetaNameless1Step t = t

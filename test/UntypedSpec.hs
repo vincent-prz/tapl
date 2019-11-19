@@ -23,6 +23,10 @@ parseThenEval :: String -> Either RuntimeError Term
 parseThenEval input =
   first (const ParsingError) (fullParser input) >>= evalWithNameGen ngMock
 
+parseThenEvalBeta :: String -> Either RuntimeError Term
+parseThenEvalBeta input =
+  first (const ParsingError) (fullParser input) >>= evalBetaWithNameGen ngMock
+
 spec :: Spec
 spec = do
   describe "Untyped Parsing" $ do
@@ -104,3 +108,11 @@ spec = do
       fmap show (parseThenEval "x") `shouldBe` Left (UnboundVariable "x")
     it "fails on unbound variable inside simple application" $ do
       fmap show (parseThenEval "\\x.x y") `shouldBe` Left (UnboundVariable "y")
+  describe "Beta evaluation" $ do
+    it "fully reduces \\x. (\\y.y) x" $ do
+      fmap show (parseThenEvalBeta "\\x. (\\y.y) x") `shouldBe` Right "\\a.a"
+    it "fully reduces \\x. (\\x.x) x" $ do
+      fmap show (parseThenEvalBeta "\\x. (\\x.x) x") `shouldBe` Right "\\a.a"
+    it "prevents variable capture" $ do
+      fmap show (parseThenEvalBeta "(\\y.\\x.x y) \\x.x") `shouldBe`
+        Right "\\a.(a \\b.b)"
