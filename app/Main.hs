@@ -1,8 +1,10 @@
-module Main where
+{-# LANGUAGE OverloadedStrings #-}
 
-import System.Console.Haskeline
+import Reflex.Dom
 import Untyped.Evaluator
 import Untyped.Parser
+import qualified Data.Text as T
+
 
 processInput :: String -> String
 processInput input =
@@ -11,6 +13,9 @@ processInput input =
         Left err -> show err
         Right t -> reduceTerm t
 
+quieter :: String -> String
+quieter input = if null input then "" else processInput input
+
 reduceTerm :: Term -> String
 reduceTerm t =
   case eval t of
@@ -18,14 +23,7 @@ reduceTerm t =
     Right t' -> show t'
 
 main :: IO ()
-main = putStrLn "Untyped lambda calculus REPL" >> runInputT defaultSettings loop
-  where
-    loop :: InputT IO ()
-    loop = do
-      minput <- getInputLine "> "
-      case minput of
-        Nothing -> return ()
-        Just "quit" -> return ()
-        Just input -> do
-          outputStrLn $ processInput input
-          loop
+main = mainWidget $ el "div" $ do
+  t <- textArea def
+  el "div" $
+    dynText $ (T.pack . quieter . T.unpack <$> _textArea_value t)
