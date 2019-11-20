@@ -104,7 +104,7 @@ evalNameless1Step t = t
 -- beta evaluation
 -- TODO: refactor this with `Strategy` pattern
 evalBeta :: Term -> Either RuntimeError Term
-evalBeta = undefined
+evalBeta = evalBetaWithNameGen genNewVarName
 
 evalBetaWithNameGen :: NameGenerator -> Term -> Either RuntimeError Term
 evalBetaWithNameGen ng =
