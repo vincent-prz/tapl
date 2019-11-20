@@ -52,7 +52,14 @@ data Term
 instance Show Term where
   show (T_VAR s) = s
   show (T_ABS t1 t2) = "\\" ++ show t1 ++ "." ++ show t2
-  show (T_APP t1 t2) = "(" ++ show t1 ++ " " ++ show t2 ++ ")"
+  show (T_APP t1 t2) = showL t1 ++ " " ++ showR t2
+    where
+      showL (T_VAR s) = s
+      showL t@(T_ABS _ _) = "(" ++ show t ++ ")"
+      showL t@(T_APP _ _) = show t
+      showR (T_VAR s) = s
+      showR t@(T_ABS _ _) = show t
+      showR t@(T_APP _ _) = "(" ++ show t ++ ")"
 
 type ParserTok a = Parsec [Token] () a
 
