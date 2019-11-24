@@ -1,7 +1,8 @@
-module Main where
+{-# LANGUAGE OverloadedStrings #-}
 
 import Data.List (intercalate)
-import System.Console.Haskeline
+import qualified Data.Text as T
+import Reflex.Dom
 import Untyped.Evaluator
 import Untyped.Parser
 
@@ -30,29 +31,16 @@ reduceTerm opts t =
            Left err -> show err
            Right t' -> show t'
 
+quieter :: Options -> String -> String
+quieter opts input =
+  if null input
+    then ""
+    else processInput opts input
+
 main :: IO ()
 main =
-  putStrLn "Untyped lambda calculus REPL" >>
-  runInputT defaultSettings (loop defaultOptions)
-  where
-    loop :: Options -> InputT IO ()
-    loop opts = do
-      minput <- getInputLine "> "
-      case minput of
-        Nothing -> return ()
-        Just ":quit" -> return ()
-        Just ":cbv" -> do
-          outputStrLn "Switching to call by value evaluation mode."
-          loop (Options (verbose opts) CallByValue)
-        Just ":beta" -> do
-          outputStrLn "Switching to full beta reduction evaluation mode."
-          loop (Options (verbose opts) FullBeta)
-        Just ":verbose on" -> do
-          outputStrLn "Enabling verbose mode."
-          loop (Options True (strategy opts))
-        Just ":verbose off" -> do
-          outputStrLn "Disabling verbose mode."
-          loop (Options False (strategy opts))
-        Just input -> do
-          outputStrLn $ processInput opts input
-          loop opts
+  mainWidget $
+  el "div" $ do
+    t <- textArea def
+    el "div" $
+      dynText (T.pack . quieter defaultOptions . T.unpack <$> _textArea_value t)
