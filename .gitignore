@@ -1,3 +1,7 @@
 .stack-work/
-tapl.cabal
+.ghc.environment.*
+*~
+dist-newstyle
+stack.yaml.lock
+result
 *~
