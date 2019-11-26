@@ -41,6 +41,8 @@ main :: IO ()
 main =
   mainWidget $
   el "div" $ do
+    el "p" $
+      text "Type in a lambda calculus expression. Example: (\\x.\\y.x y) \\x.x"
     t <- textArea def
     el "div" $
       dynText (T.pack . quieter defaultOptions . T.unpack <$> _textArea_value t)
