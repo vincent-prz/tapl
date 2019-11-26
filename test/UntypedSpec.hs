@@ -87,36 +87,36 @@ spec = do
         Right "\\t.\\f.t"
     it "evaluates succ zero to a term equivalent to one" $ do
       fmap show (parseThenEval "(\\c.\\s.\\z.s (c s z)) \\s.\\z.z") `shouldBe`
-        Right "\\a.\\b.a ((\\c.\\d.d) a b)"
+        Right "\\s.\\z.s ((\\s.\\z.z) s z)"
     it "prevents variable capture" $ do
-      fmap show (parseThenEval "\\x.(\\x.x) x") `shouldBe` Right "\\a.(\\b.b) a"
+      fmap show (parseThenEval "\\x.(\\x.x) x") `shouldBe` Right "\\x.(\\x.x) x"
     it "prevents variable capture v2" $ do
       fmap show (parseThenEval "(\\y.\\x.x y) \\x.x") `shouldBe`
-        Right "\\a.a \\b.b"
+        Right "\\x.x \\x.x"
     it "evaluates nested expression" $ do
       fmap show (parseThenEval "(\\x.x) ((\\x.x) (\\z. (\\x.x) z))") `shouldBe`
-        Right "\\a.(\\b.b) a"
+        Right "\\z.(\\x.x) z"
     it "fails on unbound variable" $ do
       fmap show (parseThenEval "x") `shouldBe` Left (UnboundVariable "x")
     it "fails on unbound variable inside simple application" $ do
       fmap show (parseThenEval "\\x.x y") `shouldBe` Left (UnboundVariable "y")
   describe "Untyped Beta evaluation" $ do
     it "fully reduces \\x. (\\y.y) x" $ do
-      fmap show (parseThenEvalBeta "\\x. (\\y.y) x") `shouldBe` Right "\\a.a"
+      fmap show (parseThenEvalBeta "\\x. (\\y.y) x") `shouldBe` Right "\\x.x"
     it "fully reduces \\x. (\\x.x) x" $ do
-      fmap show (parseThenEvalBeta "\\x. (\\x.x) x") `shouldBe` Right "\\a.a"
+      fmap show (parseThenEvalBeta "\\x. (\\x.x) x") `shouldBe` Right "\\x.x"
     it "prevents variable capture" $ do
       fmap show (parseThenEvalBeta "(\\y.\\x.x y) \\x.x") `shouldBe`
-        Right "\\a.a \\b.b"
+        Right "\\x.x \\x.x"
     it "prevents variable capture v2" $ do
       fmap show (parseThenEvalBeta "(\\y.\\x.x y) \\x.x") `shouldBe`
-        Right "\\a.a \\b.b"
+        Right "\\x.x \\x.x"
     it "prevents variable capture v3" $ do
       fmap show (parseThenEvalBeta "\\z.((\\x.\\z.x) z)") `shouldBe`
         Right "\\a.\\b.a"
     it "fully reduces nested expression" $ do
       fmap show (parseThenEvalBeta "(\\x.x) ((\\x.x) (\\z. (\\x.x) z))") `shouldBe`
-        Right "\\a.a"
+        Right "\\z.z"
     it "fully reduces succ zero to one" $ do
       fmap show (parseThenEvalBeta "(\\c.\\s.\\z.s (c s z)) \\s.\\z.z") `shouldBe`
-        Right "\\a.\\b.a b"
+        Right "\\s.\\z.s z"
