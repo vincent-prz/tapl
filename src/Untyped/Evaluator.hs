@@ -17,7 +17,14 @@ data NamelessTerm
 instance Show NamelessTerm where
   show (NT_VAR x) = show x
   show (NT_ABS _ t) = "\\" ++ "." ++ show t
-  show (NT_APP t1 t2) = "(" ++ show t1 ++ " " ++ show t2 ++ ")"
+  show (NT_APP t1 t2) = showL t1 ++ " " ++ showR t2
+    where
+      showL (NT_VAR x) = show x
+      showL t@(NT_ABS _ _) = "(" ++ show t ++ ")"
+      showL t@(NT_APP _ _) = show t
+      showR (NT_VAR x) = show x
+      showR t@(NT_ABS _ _) = show t
+      showR t@(NT_APP _ _) = "(" ++ show t ++ ")"
 
 type Context = [String]
 
