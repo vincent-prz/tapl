@@ -110,3 +110,55 @@ evalBetaNameless1Step (NT_APP t1 t2) =
 evalBetaNameless1Step (NT_ABS varname t) =
   NT_ABS varname (evalBetaNameless1Step t)
 evalBetaNameless1Step t = t
+
+-- experimental
+freeVars :: Term -> [String]
+freeVars = g []
+  where
+    g :: [String] -> Term -> [String]
+    g boundVars (T_VAR s)
+      | s `elem` boundVars = []
+      | otherwise = [s]
+    g boundVars (T_APP t1 t2) = g boundVars t1 ++ g boundVars t2
+    g boundVars (T_ABS (T_VAR s) t) = g (s : boundVars) t
+
+pickFreshName :: String -> [String] -> String
+pickFreshName s l
+  | s `notElem` l = s
+pickFreshName s l = g 1 s l
+  where
+    g n s l
+      | s ++ show n `elem` l = g (n + 1) s l
+      | otherwise = s ++ show n
+
+substitution' :: String -> Term -> Term -> Term
+substitution' x s (T_VAR y)
+  | x == y = s
+  | otherwise = T_VAR y
+substitution' x s (T_APP t1 t2) =
+  T_APP (substitution' x s t1) (substitution' x s t2)
+substitution' x s t@(T_ABS (T_VAR y) t1)
+  | x == y = t
+substitution' x s t@(T_ABS (T_VAR y) t1) =
+  let fv = freeVars s
+   in if y `notElem` fv
+        then T_ABS (T_VAR y) (substitution' x s t1)
+        else T_ABS (T_VAR (pickFreshName y fv)) (substitution' x s t1)
+
+evalBeta' :: Term -> Either RuntimeError Term
+evalBeta' term = do
+  newTerm <- evalBeta1Step' [] term -- this is suspicious
+  if newTerm == term
+    then return newTerm
+    else evalBeta' newTerm
+
+evalBeta1Step' :: Context -> Term -> Either RuntimeError Term
+evalBeta1Step' c (T_APP (T_ABS (T_VAR x) t12) t2) =
+  Right (substitution' x t2 t12)
+evalBeta1Step' c (T_APP t1 t2) =
+  T_APP <$> evalBeta1Step' c t1 <*> evalBeta1Step' c t2
+evalBeta1Step' c (T_ABS (T_VAR x) t) =
+  T_ABS (T_VAR x) <$> evalBeta1Step' (x : c) t
+evalBeta1Step' c t@(T_VAR x)
+  | x `elem` c = Right t
+  | otherwise = Left (UnboundVariable x)
