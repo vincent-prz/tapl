@@ -93,9 +93,15 @@ spec = do
     it "prevents variable capture v2" $ do
       fmap show (parseThenEval "(\\y.\\x.x y) \\x.x") `shouldBe`
         Right "\\x.x \\x.x"
+    it "prevents variable capture v3" $ do
+      fmap show (parseThenEval "(\\z.((\\x.\\z.x) z)) \\x.\\y.x y") `shouldBe`
+        Right "\\z'.\\x.\\y.x y"
     it "evaluates nested expression" $ do
       fmap show (parseThenEval "(\\x.x) ((\\x.x) (\\z. (\\x.x) z))") `shouldBe`
         Right "\\z.(\\x.x) z"
+    it "preserves bound variable" $ do
+      fmap show (parseThenEval "(\\y.(\\x.\\x.x) y) \\s.\\w.\\z.s w z") `shouldBe`
+        Right "\\x.x"
     it "fails on unbound variable" $ do
       fmap show (parseThenEval "x") `shouldBe` Left (UnboundVariable "x")
     it "fails on unbound variable inside simple application" $ do
@@ -113,10 +119,13 @@ spec = do
         Right "\\x.x \\x.x"
     it "prevents variable capture v3" $ do
       fmap show (parseThenEvalBeta "\\z.((\\x.\\z.x) z)") `shouldBe`
-        Right "\\a.\\b.a"
+        Right "\\z.\\z'.z"
     it "fully reduces nested expression" $ do
       fmap show (parseThenEvalBeta "(\\x.x) ((\\x.x) (\\z. (\\x.x) z))") `shouldBe`
         Right "\\z.z"
     it "fully reduces succ zero to one" $ do
       fmap show (parseThenEvalBeta "(\\c.\\s.\\z.s (c s z)) \\s.\\z.z") `shouldBe`
         Right "\\s.\\z.s z"
+    it "preserves bound variable" $ do
+      fmap show (parseThenEvalBeta "\\y.(\\x.\\x.x) y") `shouldBe`
+        Right "\\y.\\x.x"
