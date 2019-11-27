@@ -13,7 +13,7 @@ parseThenEval input = first (const ParsingError) (fullParser input) >>= eval
 
 parseThenEvalBeta :: String -> Either RuntimeError Term
 parseThenEvalBeta input =
-  first (const ParsingError) (fullParser input) >>= evalBeta
+  first (const ParsingError) (fullParser input) >>= evalBeta'
 
 spec :: Spec
 spec = do
@@ -119,7 +119,13 @@ spec = do
         Right "\\x.x \\x.x"
     it "prevents variable capture v3" $ do
       fmap show (parseThenEvalBeta "\\z.((\\x.\\z.x) z)") `shouldBe`
-        Right "\\z.\\z'.z"
+        Right "\\z.\\z1.z"
+    it "prevents variable capture v4" $ do
+      fmap show (parseThenEvalBeta "\\z1.\\z.((\\x.\\z.x) (z z1))") `shouldBe`
+        Right "\\z1.\\z.\\z2.z z1"
+    it "fully reduces complex expression" $ do
+      fmap show (parseThenEvalBeta "\\z1.\\z.((\\x.\\z.x) z z1)") `shouldBe`
+        Right "\\z1.\\z.z"
     it "fully reduces nested expression" $ do
       fmap show (parseThenEvalBeta "(\\x.x) ((\\x.x) (\\z. (\\x.x) z))") `shouldBe`
         Right "\\z.z"
@@ -129,3 +135,8 @@ spec = do
     it "preserves bound variable" $ do
       fmap show (parseThenEvalBeta "\\y.(\\x.\\x.x) y") `shouldBe`
         Right "\\y.\\x.x"
+    it "fails on unbound variable" $ do
+      fmap show (parseThenEvalBeta "x") `shouldBe` Left (UnboundVariable "x")
+    it "fails on unbound variable inside simple application" $ do
+      fmap show (parseThenEvalBeta "\\x.x y") `shouldBe`
+        Left (UnboundVariable "y")
