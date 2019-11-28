@@ -13,7 +13,7 @@ parseThenEval input = first (const ParsingError) (fullParser input) >>= eval
 
 parseThenEvalBeta :: String -> Either RuntimeError Term
 parseThenEvalBeta input =
-  first (const ParsingError) (fullParser input) >>= evalBeta'
+  first (const ParsingError) (fullParser input) >>= evalBeta
 
 spec :: Spec
 spec = do
@@ -48,30 +48,6 @@ spec = do
       isLeft (fullParser "\\x y.x") `shouldBe` True
     it "fails when given x.x" $ do isLeft (fullParser "x.x") `shouldBe` True
     it "fails when unknown token" $ do isLeft (fullParser "x,x") `shouldBe` True
-  describe "Untyped: convert to nameless terms" $ do
-    it "converts simple variable" $ do
-      removeNames ["x"] (T_VAR "x") `shouldBe` Right (NT_VAR 0)
-    it "converts simple application" $ do
-      removeNames ["x", "y"] (T_APP (T_VAR "x") (T_VAR "y")) `shouldBe`
-        Right (NT_APP (NT_VAR 0) (NT_VAR 1))
-    it "converts simple abstraction" $ do
-      removeNames [] (T_ABS (T_VAR "x") (T_VAR "x")) `shouldBe`
-        Right (NT_ABS "x" (NT_VAR 0))
-    it "converts abstraction with free variable" $ do
-      removeNames ["y"] (T_ABS (T_VAR "x") (T_APP (T_VAR "x") (T_VAR "y"))) `shouldBe`
-        Right (NT_ABS "x" (NT_APP (NT_VAR 0) (NT_VAR 1)))
-  describe "Untyped: convert to named terms" $ do
-    it "renames simple variable" $ do
-      restoreNames ["x"] (NT_VAR 0) `shouldBe` Right (T_VAR "x")
-    it "renames simple application" $ do
-      restoreNames ["x", "y"] (NT_APP (NT_VAR 0) (NT_VAR 1)) `shouldBe`
-        Right (T_APP (T_VAR "x") (T_VAR "y"))
-    it "renames simple abstraction" $ do
-      restoreNames [] (NT_ABS "a" (NT_VAR 0)) `shouldBe`
-        Right (T_ABS (T_VAR "a") (T_VAR "a"))
-    it "renames abstraction with free variable" $ do
-      restoreNames ["a"] (NT_ABS "b" (NT_APP (NT_VAR 0) (NT_VAR 1))) `shouldBe`
-        Right (T_ABS (T_VAR "b") (T_APP (T_VAR "b") (T_VAR "a")))
   describe "Untyped Parsing + Evaluating" $ do
     it "evaluates identity" $ do
       fmap show (parseThenEval "\\x.x") `shouldBe` Right "\\x.x"
@@ -95,7 +71,7 @@ spec = do
         Right "\\x.x \\x.x"
     it "prevents variable capture v3" $ do
       fmap show (parseThenEval "(\\z.((\\x.\\z.x) z)) \\x.\\y.x y") `shouldBe`
-        Right "\\z'.\\x.\\y.x y"
+        Right "\\z.\\x.\\y.x y"
     it "evaluates nested expression" $ do
       fmap show (parseThenEval "(\\x.x) ((\\x.x) (\\z. (\\x.x) z))") `shouldBe`
         Right "\\z.(\\x.x) z"

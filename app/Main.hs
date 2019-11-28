@@ -13,7 +13,7 @@ processInput input =
 
 reduceTerm :: Term -> String
 reduceTerm t =
-  case eval t of
+  case evalBeta t of
     Left err -> show err
     Right t' -> show t'
 
