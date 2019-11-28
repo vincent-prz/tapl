@@ -111,6 +111,12 @@ spec = do
     it "preserves bound variable" $ do
       fmap show (parseThenEvalBeta "\\y.(\\x.\\x.x) y") `shouldBe`
         Right "\\y.\\x.x"
+    it "2 + 3 = 5" $ do
+      fmap
+        show
+        (parseThenEvalBeta
+           "(\\m.\\n.\\s.\\z.m s (n s z)) (\\s.\\z.s (s z)) (\\s.\\z.s (s (s z)))") `shouldBe`
+        Right "\\s.\\z.s (s (s (s (s z))))"
     it "fails on unbound variable" $ do
       fmap show (parseThenEvalBeta "x") `shouldBe` Left (UnboundVariable "x")
     it "fails on unbound variable inside simple application" $ do
