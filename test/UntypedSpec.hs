@@ -8,24 +8,12 @@ import Test.Hspec
 import Untyped.Evaluator
 import Untyped.Parser
 
--- dependency injection of name generator
-ngMock :: NameGenerator
-ngMock [] = "a"
-ngMock (h:_) =
-  let letters = map (: []) ['a' .. 'z']
-      indexOfLast :: Maybe Int
-      indexOfLast = elemIndex h letters
-      newLetter :: Maybe String
-      newLetter = ((+ 1) <$> indexOfLast) >>= atMay letters
-   in fromMaybe "a" newLetter --FIXME: swallowing error here
-
 parseThenEval :: String -> Either RuntimeError Term
-parseThenEval input =
-  first (const ParsingError) (fullParser input) >>= evalWithNameGen ngMock
+parseThenEval input = first (const ParsingError) (fullParser input) >>= eval
 
 parseThenEvalBeta :: String -> Either RuntimeError Term
 parseThenEvalBeta input =
-  first (const ParsingError) (fullParser input) >>= evalBetaWithNameGen ngMock
+  first (const ParsingError) (fullParser input) >>= evalBeta
 
 spec :: Spec
 spec = do
@@ -60,75 +48,77 @@ spec = do
       isLeft (fullParser "\\x y.x") `shouldBe` True
     it "fails when given x.x" $ do isLeft (fullParser "x.x") `shouldBe` True
     it "fails when unknown token" $ do isLeft (fullParser "x,x") `shouldBe` True
-  describe "Untyped: convert to nameless terms" $ do
-    it "converts simple variable" $ do
-      removeNames ["x"] (T_VAR "x") `shouldBe` Right (NT_VAR 0)
-    it "converts simple application" $ do
-      removeNames ["x", "y"] (T_APP (T_VAR "x") (T_VAR "y")) `shouldBe`
-        Right (NT_APP (NT_VAR 0) (NT_VAR 1))
-    it "converts simple abstraction" $ do
-      removeNames [] (T_ABS (T_VAR "x") (T_VAR "x")) `shouldBe`
-        Right (NT_ABS (NT_VAR 0))
-    it "converts abstraction with free variable" $ do
-      removeNames ["y"] (T_ABS (T_VAR "x") (T_APP (T_VAR "x") (T_VAR "y"))) `shouldBe`
-        Right (NT_ABS (NT_APP (NT_VAR 0) (NT_VAR 1)))
-  describe "Untyped: convert to named terms" $ do
-    it "renames simple variable" $ do
-      restoreNames ngMock ["x"] (NT_VAR 0) `shouldBe` Right (T_VAR "x")
-    it "renames simple application" $ do
-      restoreNames ngMock ["x", "y"] (NT_APP (NT_VAR 0) (NT_VAR 1)) `shouldBe`
-        Right (T_APP (T_VAR "x") (T_VAR "y"))
-    it "renames simple abstraction" $ do
-      restoreNames ngMock [] (NT_ABS (NT_VAR 0)) `shouldBe`
-        Right (T_ABS (T_VAR "a") (T_VAR "a"))
-    it "renames abstraction with free variable" $ do
-      restoreNames ngMock ["a"] (NT_ABS (NT_APP (NT_VAR 0) (NT_VAR 1))) `shouldBe`
-        Right (T_ABS (T_VAR "b") (T_APP (T_VAR "b") (T_VAR "a")))
   describe "Untyped Parsing + Evaluating" $ do
     it "evaluates identity" $ do
-      fmap show (parseThenEval "\\x.x") `shouldBe` Right "\\a.a"
+      fmap show (parseThenEval "\\x.x") `shouldBe` Right "\\x.x"
     it "evaluates identity applied to itself" $ do
-      fmap show (parseThenEval "(\\x.x) (\\x.x)") `shouldBe` Right "\\a.a"
+      fmap show (parseThenEval "(\\x.x) (\\x.x)") `shouldBe` Right "\\x.x"
     it "evaluates definition of true" $ do
-      fmap show (parseThenEval "\\t.\\f.t") `shouldBe` Right "\\a.\\b.a"
+      fmap show (parseThenEval "\\t.\\f.t") `shouldBe` Right "\\t.\\f.t"
     it "evaluates not true to false" $ do
       fmap show (parseThenEval "(\\b. b (\\t.\\f.f) (\\t.\\f.t)) \\t.\\f.t") `shouldBe`
-        Right "\\a.\\b.b"
+        Right "\\t.\\f.f"
     it "evaluates not false to true" $ do
       fmap show (parseThenEval "(\\b. b (\\t.\\f.f) (\\t.\\f.t)) \\t.\\f.f") `shouldBe`
-        Right "\\a.\\b.a"
+        Right "\\t.\\f.t"
     it "evaluates succ zero to a term equivalent to one" $ do
       fmap show (parseThenEval "(\\c.\\s.\\z.s (c s z)) \\s.\\z.z") `shouldBe`
-        Right "\\a.\\b.a ((\\c.\\d.d) a b)"
+        Right "\\s.\\z.s ((\\s.\\z.z) s z)"
     it "prevents variable capture" $ do
-      fmap show (parseThenEval "\\x.(\\x.x) x") `shouldBe` Right "\\a.(\\b.b) a"
+      fmap show (parseThenEval "\\x.(\\x.x) x") `shouldBe` Right "\\x.(\\x.x) x"
     it "prevents variable capture v2" $ do
       fmap show (parseThenEval "(\\y.\\x.x y) \\x.x") `shouldBe`
-        Right "\\a.a \\b.b"
+        Right "\\x.x \\x.x"
+    it "prevents variable capture v3" $ do
+      fmap show (parseThenEval "(\\z.((\\x.\\z.x) z)) \\x.\\y.x y") `shouldBe`
+        Right "\\z.\\x.\\y.x y"
     it "evaluates nested expression" $ do
       fmap show (parseThenEval "(\\x.x) ((\\x.x) (\\z. (\\x.x) z))") `shouldBe`
-        Right "\\a.(\\b.b) a"
+        Right "\\z.(\\x.x) z"
+    it "preserves bound variable" $ do
+      fmap show (parseThenEval "(\\y.(\\x.\\x.x) y) \\s.\\w.\\z.s w z") `shouldBe`
+        Right "\\x.x"
     it "fails on unbound variable" $ do
       fmap show (parseThenEval "x") `shouldBe` Left (UnboundVariable "x")
     it "fails on unbound variable inside simple application" $ do
       fmap show (parseThenEval "\\x.x y") `shouldBe` Left (UnboundVariable "y")
   describe "Untyped Beta evaluation" $ do
     it "fully reduces \\x. (\\y.y) x" $ do
-      fmap show (parseThenEvalBeta "\\x. (\\y.y) x") `shouldBe` Right "\\a.a"
+      fmap show (parseThenEvalBeta "\\x. (\\y.y) x") `shouldBe` Right "\\x.x"
     it "fully reduces \\x. (\\x.x) x" $ do
-      fmap show (parseThenEvalBeta "\\x. (\\x.x) x") `shouldBe` Right "\\a.a"
+      fmap show (parseThenEvalBeta "\\x. (\\x.x) x") `shouldBe` Right "\\x.x"
     it "prevents variable capture" $ do
       fmap show (parseThenEvalBeta "(\\y.\\x.x y) \\x.x") `shouldBe`
-        Right "\\a.a \\b.b"
+        Right "\\x.x \\x.x"
     it "prevents variable capture v2" $ do
       fmap show (parseThenEvalBeta "(\\y.\\x.x y) \\x.x") `shouldBe`
-        Right "\\a.a \\b.b"
+        Right "\\x.x \\x.x"
     it "prevents variable capture v3" $ do
       fmap show (parseThenEvalBeta "\\z.((\\x.\\z.x) z)") `shouldBe`
-        Right "\\a.\\b.a"
+        Right "\\z.\\z1.z"
+    it "prevents variable capture v4" $ do
+      fmap show (parseThenEvalBeta "\\z1.\\z.((\\x.\\z.x) (z z1))") `shouldBe`
+        Right "\\z1.\\z.\\z2.z z1"
+    it "fully reduces complex expression" $ do
+      fmap show (parseThenEvalBeta "\\z1.\\z.((\\x.\\z.x) z z1)") `shouldBe`
+        Right "\\z1.\\z.z"
     it "fully reduces nested expression" $ do
       fmap show (parseThenEvalBeta "(\\x.x) ((\\x.x) (\\z. (\\x.x) z))") `shouldBe`
-        Right "\\a.a"
+        Right "\\z.z"
     it "fully reduces succ zero to one" $ do
       fmap show (parseThenEvalBeta "(\\c.\\s.\\z.s (c s z)) \\s.\\z.z") `shouldBe`
-        Right "\\a.\\b.a b"
+        Right "\\s.\\z.s z"
+    it "preserves bound variable" $ do
+      fmap show (parseThenEvalBeta "\\y.(\\x.\\x.x) y") `shouldBe`
+        Right "\\y.\\x.x"
+    it "2 + 3 = 5" $ do
+      fmap
+        show
+        (parseThenEvalBeta
+           "(\\m.\\n.\\s.\\z.m s (n s z)) (\\s.\\z.s (s z)) (\\s.\\z.s (s (s z)))") `shouldBe`
+        Right "\\s.\\z.s (s (s (s (s z))))"
+    it "fails on unbound variable" $ do
+      fmap show (parseThenEvalBeta "x") `shouldBe` Left (UnboundVariable "x")
+    it "fails on unbound variable inside simple application" $ do
+      fmap show (parseThenEvalBeta "\\x.x y") `shouldBe`
+        Left (UnboundVariable "y")

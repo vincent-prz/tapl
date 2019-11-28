@@ -41,6 +41,7 @@ lexer :: String -> Either ParseError [Token]
 lexer input = parse (parseTokens <* eof) "lexing error" input
 
 -- parse
+-- TODO: T_ABS should be String -> Term -> Term
 data Term
   = T_VAR String
   | T_ABS Term
