@@ -14,9 +14,9 @@ stack run
 
 ```
 > \x.x
-\a.a
+\x.x
 > \t.\f.t
-\a.\b.a
-> \x.\y. x y
-\a.\b.(a b)
+\t.\f.t
+> (\t.\f.\t) (\x.x) (\x.x x)
+\x.x
 ```
