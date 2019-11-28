@@ -22,9 +22,10 @@ pickFreshName s l
   | s `notElem` l = s
 pickFreshName s l = g 1 s l
   where
-    g n s l
-      | s ++ show n `elem` l = g (n + 1) s l
-      | otherwise = s ++ show n
+    g :: Int -> String -> [String] -> String
+    g n name existingNames
+      | name ++ show n `elem` existingNames = g (n + 1) name existingNames
+      | otherwise = name ++ show n
 
 substitution :: String -> Term -> Term -> Term
 substitution x s (T_VAR y)
@@ -32,9 +33,9 @@ substitution x s (T_VAR y)
   | otherwise = T_VAR y
 substitution x s (T_APP t1 t2) =
   T_APP (substitution x s t1) (substitution x s t2)
-substitution x s t@(T_ABS (T_VAR y) t1)
+substitution x _ t@(T_ABS (T_VAR y) _)
   | x == y = t
-substitution x s t@(T_ABS (T_VAR y) t1) =
+substitution x s (T_ABS (T_VAR y) t1) =
   let fv = getFreeVars s
    in if y `notElem` fv
         then T_ABS (T_VAR y) (substitution x s t1)
@@ -56,9 +57,9 @@ eval term =
     Left x -> Left (UnboundVariable x)
     Right _ -> Right (actualEval term)
   where
-    actualEval term =
-      let newTerm = eval1Step term
-       in if newTerm == term
+    actualEval t =
+      let newTerm = eval1Step t
+       in if newTerm == t
             then newTerm
             else actualEval newTerm
 
@@ -76,9 +77,9 @@ evalBeta term =
     Left x -> Left (UnboundVariable x)
     Right _ -> Right (actualEval term)
   where
-    actualEval term =
-      let newTerm = evalBeta1Step term
-       in if newTerm == term
+    actualEval t =
+      let newTerm = evalBeta1Step t
+       in if newTerm == t
             then newTerm
             else actualEval newTerm
 
