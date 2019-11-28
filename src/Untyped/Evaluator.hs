@@ -3,9 +3,13 @@ module Untyped.Evaluator where
 import Untyped.Parser (Term(..))
 
 data RuntimeError
-  = ParsingError -- FIXME:only here for tests, remove this
+  = ParsingError
   | UnboundVariable String
   deriving (Eq, Show)
+
+data EvaluationStrategy
+  = CallByValue
+  | FullBeta
 
 getFreeVars :: Term -> [String]
 getFreeVars = g []
@@ -51,17 +55,26 @@ checkVarsAreBound = g []
     g boundVars (T_APP t1 t2) = g boundVars t1 >> g boundVars t2
     g boundVars (T_ABS (T_VAR x) t) = g (x : boundVars) t
 
-eval :: Term -> Either RuntimeError Term
-eval term =
+getEvalFromStrategy :: EvaluationStrategy -> (Term -> Term)
+getEvalFromStrategy CallByValue = eval1Step
+getEvalFromStrategy FullBeta = evalBeta1Step
+
+evalWithStrategy :: EvaluationStrategy -> Term -> Either RuntimeError Term
+evalWithStrategy strategy term =
   case checkVarsAreBound term of
     Left x -> Left (UnboundVariable x)
     Right _ -> Right (actualEval term)
   where
     actualEval t =
-      let newTerm = eval1Step t
+      let evalFunc = getEvalFromStrategy strategy
+          newTerm = evalFunc t
        in if newTerm == t
             then newTerm
             else actualEval newTerm
+
+-- call by value
+eval :: Term -> Either RuntimeError Term
+eval = evalWithStrategy CallByValue
 
 eval1Step :: Term -> Term
 eval1Step (T_APP (T_ABS (T_VAR x) t12) v2@(T_ABS _ _)) = substitution x v2 t12
@@ -70,18 +83,8 @@ eval1Step (T_APP t1 t2) = T_APP (eval1Step t1) t2
 eval1Step t = t
 
 -- beta evaluation
--- TODO: refactor this with `Strategy` pattern
 evalBeta :: Term -> Either RuntimeError Term
-evalBeta term =
-  case checkVarsAreBound term of
-    Left x -> Left (UnboundVariable x)
-    Right _ -> Right (actualEval term)
-  where
-    actualEval t =
-      let newTerm = evalBeta1Step t
-       in if newTerm == t
-            then newTerm
-            else actualEval newTerm
+evalBeta = evalWithStrategy FullBeta
 
 evalBeta1Step :: Term -> Term
 evalBeta1Step (T_APP (T_ABS (T_VAR x) t12) t2) = substitution x t2 t12
