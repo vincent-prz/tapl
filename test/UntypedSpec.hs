@@ -15,6 +15,11 @@ parseThenEvalBeta :: String -> Either RuntimeError Term
 parseThenEvalBeta input =
   first (const ParsingError) (fullParser input) >>= evalBeta
 
+parseThenVerboseEvalBeta :: String -> Either RuntimeError [Term]
+parseThenVerboseEvalBeta input =
+  first (const ParsingError) (fullParser input) >>=
+  verboseEvalWithStrategy FullBeta
+
 spec :: Spec
 spec = do
   describe "Untyped Parsing" $ do
@@ -122,3 +127,17 @@ spec = do
     it "fails on unbound variable inside simple application" $ do
       fmap show (parseThenEvalBeta "\\x.x y") `shouldBe`
         Left (UnboundVariable "y")
+  describe "Verbose Untyped Beta evaluation" $ do
+    it "fully reduces \\x. (\\y.y) x" $ do
+      fmap (map show) (parseThenVerboseEvalBeta "\\x. (\\y.y) x") `shouldBe`
+        Right ["\\x.(\\y.y) x", "\\x.x"]
+    it "fully reduces nested expression" $ do
+      fmap
+        (map show)
+        (parseThenVerboseEvalBeta "(\\x.x) ((\\x.x) (\\z. (\\x.x) z))") `shouldBe`
+        Right
+          [ "(\\x.x) ((\\x.x) \\z.(\\x.x) z)"
+          , "(\\x.x) \\z.(\\x.x) z"
+          , "\\z.(\\x.x) z"
+          , "\\z.z"
+          ]
