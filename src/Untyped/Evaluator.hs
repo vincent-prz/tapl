@@ -72,6 +72,21 @@ evalWithStrategy strategy term =
             then newTerm
             else actualEval newTerm
 
+-- also returns intermediary steps
+verboseEvalWithStrategy ::
+     EvaluationStrategy -> Term -> Either RuntimeError [Term]
+verboseEvalWithStrategy strategy term =
+  case checkVarsAreBound term of
+    Left x -> Left (UnboundVariable x)
+    Right _ -> Right (actualEval term)
+  where
+    actualEval t =
+      let evalFunc = getEvalFromStrategy strategy
+          newTerm = evalFunc t
+       in if newTerm == t
+            then [newTerm]
+            else t : actualEval newTerm
+
 -- call by value
 eval :: Term -> Either RuntimeError Term
 eval = evalWithStrategy CallByValue
