@@ -10,6 +10,7 @@ data RuntimeError
 data EvaluationStrategy
   = CallByValue
   | FullBeta
+  deriving (Eq, Ord)
 
 getFreeVars :: Term -> [String]
 getFreeVars = g []

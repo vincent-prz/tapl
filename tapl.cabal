@@ -46,6 +46,7 @@ executable tapl-exe
     , reflex-dom
     , tapl
     , text
+    ,containers
   default-language: Haskell2010
   if impl(ghcjs)
     ghc-options: -dedupe

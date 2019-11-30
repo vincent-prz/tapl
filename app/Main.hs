@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 import Data.List (intercalate)
+import Data.Map (Map, fromList)
 import qualified Data.Text as T
 import Reflex.Dom
 import Untyped.Evaluator
@@ -12,7 +13,7 @@ data Options = Options
   }
 
 defaultOptions :: Options
-defaultOptions = Options False CallByValue
+defaultOptions = Options True FullBeta
 
 processInput :: Options -> String -> String
 processInput opts input =
@@ -26,7 +27,7 @@ reduceTerm opts t =
   if verbose opts
     then case verboseEvalWithStrategy (strategy opts) t of
            Left err -> show err
-           Right ts -> intercalate "\n" (map show ts)
+           Right ts -> intercalate " ; " (map show ts) -- fix this
     else case evalWithStrategy (strategy opts) t of
            Left err -> show err
            Right t' -> show t'
@@ -37,12 +38,31 @@ quieter opts input =
     then ""
     else processInput opts input
 
+evalStrategies :: Map EvaluationStrategy T.Text
+evalStrategies =
+  fromList [(FullBeta, "Full beta reduction"), (CallByValue, "Call by value")]
+
+verbosityChoices :: Map Bool T.Text
+verbosityChoices = fromList [(False, "No"), (True, "Yes")]
+
 main :: IO ()
 main =
   mainWidget $
   el "div" $ do
     el "p" $
       text "Type in a lambda calculus expression. Example: (\\x.\\y.x y) \\x.x"
-    t <- textArea def
-    el "div" $
-      dynText (T.pack . quieter defaultOptions . T.unpack <$> _textArea_value t)
+    el "p" $ text "Print all reduction steps:"
+    dVerbose <-
+      dropdown (verbose defaultOptions) (constDyn verbosityChoices) def
+    el "p" $ text "Evaluation strategy:"
+    dEvalStrat <-
+      dropdown (strategy defaultOptions) (constDyn evalStrategies) def
+    el "div" $ do
+      t <- textArea def
+      el "p" $
+        dynText
+          ((\input verbosity strat ->
+              T.pack $ quieter (Options verbosity strat) $ T.unpack input) <$>
+           _textArea_value t <*>
+           _dropdown_value dVerbose <*>
+           _dropdown_value dEvalStrat)
