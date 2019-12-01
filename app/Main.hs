@@ -15,27 +15,27 @@ data Options = Options
 defaultOptions :: Options
 defaultOptions = Options True FullBeta
 
-processInput :: Options -> String -> String
+processInput :: Options -> String -> [String]
 processInput opts input =
   let parseResult = Untyped.Parser.fullParser input
    in case parseResult of
-        Left err -> show err
+        Left err -> [show err]
         Right t -> reduceTerm opts t
 
-reduceTerm :: Options -> Term -> String
+reduceTerm :: Options -> Term -> [String]
 reduceTerm opts t =
   if verbose opts
     then case verboseEvalWithStrategy (strategy opts) t of
-           Left err -> show err
-           Right ts -> intercalate " ; " (map show ts) -- fix this
+           Left err -> [show err]
+           Right ts -> map show ts
     else case evalWithStrategy (strategy opts) t of
-           Left err -> show err
-           Right t' -> show t'
+           Left err -> [show err]
+           Right t' -> [show t']
 
-quieter :: Options -> String -> String
+quieter :: Options -> String -> [String]
 quieter opts input =
   if null input
-    then ""
+    then []
     else processInput opts input
 
 evalStrategies :: Map EvaluationStrategy T.Text
@@ -44,6 +44,22 @@ evalStrategies =
 
 verbosityChoices :: Map Bool T.Text
 verbosityChoices = fromList [(False, "No"), (True, "Yes")]
+
+outputComponent ::
+     (DomBuilder t m, PostBuild t m)
+  => Dynamic t T.Text
+  -> Dynamic t Bool
+  -> Dynamic t EvaluationStrategy
+  -> m ()
+outputComponent text verbosity strategy =
+  el "p" $
+  dynText
+    ((\input v strat
+        --T.pack $ quieter (Options v strat) $ T.unpack input) <$>
+       -> T.pack $ const "hello" $ T.unpack input) <$>
+     text <*>
+     verbosity <*>
+     strategy)
 
 main :: IO ()
 main =
@@ -59,10 +75,14 @@ main =
       dropdown (strategy defaultOptions) (constDyn evalStrategies) def
     el "div" $ do
       t <- textArea def
-      el "p" $
-        dynText
-          ((\input verbosity strat ->
-              T.pack $ quieter (Options verbosity strat) $ T.unpack input) <$>
-           _textArea_value t <*>
-           _dropdown_value dVerbose <*>
-           _dropdown_value dEvalStrat)
+      outputComponent
+        (_textArea_value t)
+        (_dropdown_value dVerbose)
+        (_dropdown_value dEvalStrat)
+      --el "p" $
+      --  dynText
+      --    ((\input verbosity strat ->
+      --        T.pack $ quieter (Options verbosity strat) $ T.unpack input) <$>
+      --     _textArea_value t <*>
+      --     _dropdown_value dVerbose <*>
+      --     _dropdown_value dEvalStrat)
