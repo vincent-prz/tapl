@@ -1,19 +1,33 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 
 import Data.List (intercalate)
-import Data.Map (Map, fromList)
-import qualified Data.Text as T
-import Reflex.Dom
 import Untyped.Evaluator
 import Untyped.Parser
+
+import Miso hiding (Options)
+import Miso.String hiding (map, null)
 
 data Options = Options
   { verbose :: Bool
   , strategy :: EvaluationStrategy
-  }
+  } deriving (Eq)
 
-defaultOptions :: Options
-defaultOptions = Options True FullBeta
+data Model = Model
+  { opts :: Options
+  , input :: MisoString
+  } deriving (Eq)
+
+-- | Sum type for application events
+data Action
+  = ChangeInput MisoString
+  | ChangeVerbose MisoString
+  | ChangeEvalStrategy MisoString
+  | NoOp
+  deriving (Show, Eq)
+
+defaultOpts :: Options
+defaultOpts = Options True FullBeta
 
 processInput :: Options -> String -> [String]
 processInput opts input =
@@ -38,51 +52,58 @@ quieter opts input =
     then []
     else processInput opts input
 
-evalStrategies :: Map EvaluationStrategy T.Text
-evalStrategies =
-  fromList [(FullBeta, "Full beta reduction"), (CallByValue, "Call by value")]
-
-verbosityChoices :: Map Bool T.Text
-verbosityChoices = fromList [(False, "No"), (True, "Yes")]
-
-outputComponent ::
-     (DomBuilder t m, PostBuild t m)
-  => Dynamic t T.Text
-  -> Dynamic t Bool
-  -> Dynamic t EvaluationStrategy
-  -> m ()
-outputComponent text verbosity strategy =
-  el "p" $
-  dynText
-    ((\input v strat
-        --T.pack $ quieter (Options v strat) $ T.unpack input) <$>
-       -> T.pack $ const "hello" $ T.unpack input) <$>
-     text <*>
-     verbosity <*>
-     strategy)
-
 main :: IO ()
-main =
-  mainWidget $
-  el "div" $ do
-    el "p" $
-      text "Type in a lambda calculus expression. Example: (\\x.\\y.x y) \\x.x"
-    el "p" $ text "Print all reduction steps:"
-    dVerbose <-
-      dropdown (verbose defaultOptions) (constDyn verbosityChoices) def
-    el "p" $ text "Evaluation strategy:"
-    dEvalStrat <-
-      dropdown (strategy defaultOptions) (constDyn evalStrategies) def
-    el "div" $ do
-      t <- textArea def
-      outputComponent
-        (_textArea_value t)
-        (_dropdown_value dVerbose)
-        (_dropdown_value dEvalStrat)
-      --el "p" $
-      --  dynText
-      --    ((\input verbosity strat ->
-      --        T.pack $ quieter (Options verbosity strat) $ T.unpack input) <$>
-      --     _textArea_value t <*>
-      --     _dropdown_value dVerbose <*>
-      --     _dropdown_value dEvalStrat)
+main = startApp App {..}
+  where
+    initialAction = NoOp
+    model = Model {opts = defaultOpts, input = "(\\x.x) \\y.y"}
+    update = updateModel -- update function
+    view = viewModel -- view function
+    events = defaultEvents -- default delegated events
+    subs = [] -- empty subscription list
+    mountPoint = Nothing -- mount point for application (Nothing defaults to 'body')
+
+-- FIXME: partial functions + clunkyness with records
+updateModel :: Action -> Model -> Effect Action Model
+updateModel action m =
+  case action of
+    ChangeInput newInput -> noEff $ Model {opts = opts m, input = newInput}
+    ChangeVerbose "0" ->
+      noEff $ Model {opts = Options True (strategy (opts m)), input = input m}
+    ChangeVerbose "1" ->
+      noEff $ Model {opts = Options False (strategy (opts m)), input = input m}
+    ChangeEvalStrategy "0" ->
+      noEff $
+      Model {opts = Options (verbose (opts m)) CallByValue, input = input m}
+    ChangeEvalStrategy "1" ->
+      noEff $
+      Model {opts = Options (verbose (opts m)) FullBeta, input = input m}
+    NoOp -> noEff m
+
+viewSingleStep :: String -> View Action
+viewSingleStep step = p_ [] [text $ toMisoString step]
+
+viewModel :: Model -> View Action
+viewModel m =
+  div_
+    []
+    [ p_ [] ["Type in a lambda calculus expression."]
+    , div_
+        []
+        [ p_ [] ["Print all steps ?"]
+        , select_
+            [onChange ChangeVerbose]
+            [option_ [value_ "0"] ["Yes"], option_ [value_ "1"] ["No"]]
+        ]
+    , div_
+        []
+        [ p_ [] ["Evaluation mode:"]
+        , select_
+            [onChange ChangeEvalStrategy]
+            [ option_ [value_ "0"] ["Call by value"]
+            , option_ [value_ "1"] ["Full Beta reduction"]
+            ]
+        ]
+    , textarea_ [onInput ChangeInput] []
+    , div_ [] (map viewSingleStep (quieter (opts m) (fromMisoString $ input m)))
+    ]

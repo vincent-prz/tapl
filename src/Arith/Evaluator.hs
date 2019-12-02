@@ -40,7 +40,6 @@ isValue t = isNumericalValue t || isBooleanValue t
 evalBigStep :: Term -> Term
 evalBigStep t
   | isValue t = t -- B-Value
-  -- | otherwise = t -- impossible to further evaluate
 evalBigStep (T_IF_THEN_ELSE t1 t2 t3) =
   let cond = evalBigStep t1
    in if cond == T_TRUE
