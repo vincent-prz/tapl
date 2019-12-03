@@ -113,6 +113,6 @@ viewModel m =
                 ["Full Beta reduction"]
             ]
         ]
-    , textarea_ [defaultValue_ (input m), onInput ChangeInput] []
+    , textarea_ [cols_ "50", defaultValue_ (input m), onInput ChangeInput] []
     , div_ [] (map viewSingleStep (quieter (opts m) (fromMisoString $ input m)))
     ]
