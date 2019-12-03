@@ -1,7 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 
-import Data.List (intercalate)
 import Untyped.Evaluator
 import Untyped.Parser
 
@@ -21,13 +20,19 @@ data Model = Model
 -- | Sum type for application events
 data Action
   = ChangeInput MisoString
-  | ChangeVerbose MisoString
-  | ChangeEvalStrategy MisoString
+  | ChangeVerbose Bool
+  | ChangeEvalStrategy EvaluationStrategy
   | NoOp
-  deriving (Show, Eq)
+  deriving (Eq)
 
 defaultOpts :: Options
 defaultOpts = Options True FullBeta
+
+valueToEvaluationStrategy :: MisoString -> EvaluationStrategy
+valueToEvaluationStrategy "0" = CallByValue
+valueToEvaluationStrategy "1" = FullBeta
+valueToEvaluationStrategy v =
+  error $ "unrecognized value for evaluation strategy :" ++ fromMisoString v
 
 processInput :: Options -> String -> [String]
 processInput opts input =
@@ -63,21 +68,15 @@ main = startApp App {..}
     subs = [] -- empty subscription list
     mountPoint = Nothing -- mount point for application (Nothing defaults to 'body')
 
--- FIXME: partial functions + clunkyness with records
+-- FIXME: clunkyness with records
 updateModel :: Action -> Model -> Effect Action Model
 updateModel action m =
   case action of
     ChangeInput newInput -> noEff $ Model {opts = opts m, input = newInput}
-    ChangeVerbose "0" ->
-      noEff $ Model {opts = Options True (strategy (opts m)), input = input m}
-    ChangeVerbose "1" ->
-      noEff $ Model {opts = Options False (strategy (opts m)), input = input m}
-    ChangeEvalStrategy "0" ->
-      noEff $
-      Model {opts = Options (verbose (opts m)) CallByValue, input = input m}
-    ChangeEvalStrategy "1" ->
-      noEff $
-      Model {opts = Options (verbose (opts m)) FullBeta, input = input m}
+    ChangeVerbose v ->
+      noEff $ Model {opts = Options v (strategy (opts m)), input = input m}
+    ChangeEvalStrategy strat ->
+      noEff $ Model {opts = Options (verbose (opts m)) strat, input = input m}
     NoOp -> noEff m
 
 viewSingleStep :: String -> View Action
@@ -92,18 +91,28 @@ viewModel m =
         []
         [ p_ [] ["Print all steps ?"]
         , select_
-            [onChange ChangeVerbose]
-            [option_ [value_ "0"] ["Yes"], option_ [value_ "1"] ["No"]]
+            [ on "change" valueDecoder $
+              ChangeVerbose . toEnum . read . fromMisoString
+            ]
+            [ option_ [selected_ $ verbose $ opts m, value_ "1"] ["Yes"]
+            , option_ [selected_ $ not $ verbose $ opts m, value_ "0"] ["No"]
+            ]
         ]
     , div_
         []
         [ p_ [] ["Evaluation mode:"]
         , select_
-            [onChange ChangeEvalStrategy]
-            [ option_ [value_ "0"] ["Call by value"]
-            , option_ [value_ "1"] ["Full Beta reduction"]
+            [ on "change" valueDecoder $
+              ChangeEvalStrategy . valueToEvaluationStrategy
+            ]
+            [ option_
+                [selected_ (strategy (opts m) == CallByValue), value_ "0"]
+                ["Call by value"]
+            , option_
+                [selected_ (strategy (opts m) == FullBeta), value_ "1"]
+                ["Full Beta reduction"]
             ]
         ]
-    , textarea_ [onInput ChangeInput] []
+    , textarea_ [defaultValue_ (input m), onInput ChangeInput] []
     , div_ [] (map viewSingleStep (quieter (opts m) (fromMisoString $ input m)))
     ]
