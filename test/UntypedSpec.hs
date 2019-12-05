@@ -9,16 +9,17 @@ import Untyped.Evaluator
 import Untyped.Parser
 
 parseThenEval :: String -> Either RuntimeError Term
-parseThenEval input = first (const ParsingError) (fullParser input) >>= eval
+parseThenEval input =
+  first (const ParsingError) (fullParser input) >>= evalProgram CallByValue
 
 parseThenEvalBeta :: String -> Either RuntimeError Term
 parseThenEvalBeta input =
-  first (const ParsingError) (fullParser input) >>= evalBeta
+  first (const ParsingError) (fullParser input) >>= evalProgram FullBeta
 
-parseThenVerboseEvalBeta :: String -> Either RuntimeError [Term]
+-- FIXME: rechange this
+parseThenVerboseEvalBeta :: String -> Either RuntimeError Term
 parseThenVerboseEvalBeta input =
-  first (const ParsingError) (fullParser input) >>=
-  verboseEvalWithStrategy FullBeta
+  first (const ParsingError) (fullParser input) >>= evalProgram FullBeta
 
 spec :: Spec
 spec = do
@@ -127,17 +128,43 @@ spec = do
     it "fails on unbound variable inside simple application" $ do
       fmap show (parseThenEvalBeta "\\x.x y") `shouldBe`
         Left (UnboundVariable "y")
-  describe "Verbose Untyped Beta evaluation" $ do
-    it "fully reduces \\x. (\\y.y) x" $ do
-      fmap (map show) (parseThenVerboseEvalBeta "\\x. (\\y.y) x") `shouldBe`
-        Right ["\\x.(\\y.y) x", "\\x.x"]
-    it "fully reduces nested expression" $ do
+  --describe "Verbose Untyped Beta evaluation" $ do
+  --  it "fully reduces \\x. (\\y.y) x" $ do
+  --    fmap (map show) (parseThenVerboseEvalBeta "\\x. (\\y.y) x") `shouldBe`
+  --      Right ["\\x.(\\y.y) x", "\\x.x"]
+  --  it "fully reduces nested expression" $ do
+  --    fmap
+  --      (map show)
+  --      (parseThenVerboseEvalBeta "(\\x.x) ((\\x.x) (\\z. (\\x.x) z))") `shouldBe`
+  --      Right
+  --        [ "(\\x.x) ((\\x.x) \\z.(\\x.x) z)"
+  --        , "(\\x.x) \\z.(\\x.x) z"
+  --        , "\\z.(\\x.x) z"
+  --        , "\\z.z"
+  --        ]
+  describe "Untyped multiline Beta evaluation" $ do
+    it "correctly evals the empty program" $ do
+      fmap show (parseThenEvalBeta "") `shouldBe` Right "()"
+    it "correctly evals 2 terms" $ do
+      fmap show (parseThenEvalBeta "\\x.x x\n\\x.x") `shouldBe` Right "\\x.x"
+    it "correctly evals single assign" $ do
+      fmap show (parseThenEvalBeta "id = \\x.x x") `shouldBe` Right "()"
+    it "correctly evals assign + term" $ do
+      fmap show (parseThenEvalBeta "f = \\x.x x\n\\x.x") `shouldBe`
+        Right "\\x.x"
+    it "correctly evals assign + term using the assignment" $ do
+      fmap show (parseThenEvalBeta "id = \\x.x\nid") `shouldBe` Right "\\x.x"
+    it "correctly evals assign + reducible term using the assignment" $ do
+      fmap show (parseThenEvalBeta "id = \\x.x\nid \\x.x x") `shouldBe`
+        Right "\\x.x x"
+    it "correctly evals assign + reducible term using the assignment v2" $ do
+      fmap show (parseThenEvalBeta "id = \\x.x\nf = id (\\x.\\y.y)\nf") `shouldBe`
+        Right "\\x.\\y.y"
+    it "correctly evals assign + reducible term using the assignment v3" $ do
+      fmap show (parseThenEvalBeta "id = \\x.x\nf = id (\\x.\\y.y)\nf \\x.x id") `shouldBe`
+        Right "\\x.x"
+    it "correctly evals assign + reducible term using the assignment v4" $ do
       fmap
-        (map show)
-        (parseThenVerboseEvalBeta "(\\x.x) ((\\x.x) (\\z. (\\x.x) z))") `shouldBe`
-        Right
-          [ "(\\x.x) ((\\x.x) \\z.(\\x.x) z)"
-          , "(\\x.x) \\z.(\\x.x) z"
-          , "\\z.(\\x.x) z"
-          , "\\z.z"
-          ]
+        show
+        (parseThenEvalBeta "id = \\x.x\nf = id (\\x.\\y.y)\nf \\x.x \\z.z z") `shouldBe`
+        Right "\\z.z z"

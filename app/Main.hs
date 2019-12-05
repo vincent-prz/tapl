@@ -18,17 +18,13 @@ processInput opts input =
   let parseResult = Untyped.Parser.fullParser input
    in case parseResult of
         Left err -> show err
-        Right t -> reduceTerm opts t
+        Right program -> runProgram opts program
 
-reduceTerm :: Options -> Term -> String
-reduceTerm opts t =
-  if verbose opts
-    then case verboseEvalWithStrategy (strategy opts) t of
-           Left err -> show err
-           Right ts -> intercalate "\n" (map show ts)
-    else case evalWithStrategy (strategy opts) t of
-           Left err -> show err
-           Right t' -> show t'
+runProgram :: Options -> Program -> String
+runProgram opts program =
+  case evalProgram (strategy opts) program of
+    Left err -> show err
+    Right t' -> show t'
 
 main :: IO ()
 main =
