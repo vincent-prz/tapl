@@ -1,6 +1,6 @@
 # Introduction
 
-Haskell implementation of the lambda calculi covered in the [Types and Programming Languages](https://www.cis.upenn.edu/~bcpierce/tapl/) book. Work in progress.
+Haskell implementation of the lambda calculi covered in the [Types and Programming Languages](https://www.cis.upenn.edu/~bcpierce/tapl/) book. Work in progress. 
 
 # How to run it
 
@@ -34,3 +34,6 @@ GHCJS:
 > (\t.\f.\t) (\x.x) (\x.x x)
 \x.x
 ```
+# Browser version
+
+I'm also making a browser version of my untyped lambda calculus repl, it can be found [here](https://vincent-prz.github.io/). It corresponds to the `browser` branch of this project.
