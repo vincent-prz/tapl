@@ -49,6 +49,9 @@ executable tapl-exe
   default-language: Haskell2010
   if impl(ghcjs)
     ghc-options: -dedupe
+  if !impl(ghcjs)
+    build-depends:
+       jsaddle, jsaddle-warp, transformers, warp, websockets
 
 test-suite tapl-test
   type: exitcode-stdio-1.0
