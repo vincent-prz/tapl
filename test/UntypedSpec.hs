@@ -162,9 +162,12 @@ spec = do
         Right "\\x.\\y.y"
     it "correctly evals assign + reducible term using the assignment v3" $ do
       fmap show (parseThenEvalBeta "id = \\x.x\nf = id (\\x.\\y.y)\nf \\x.x id") `shouldBe`
-        Right "\\x.x"
+        Right "\\y.y"
     it "correctly evals assign + reducible term using the assignment v4" $ do
       fmap
         show
-        (parseThenEvalBeta "id = \\x.x\nf = id (\\x.\\y.y)\nf \\x.x \\z.z z") `shouldBe`
+        (parseThenEvalBeta "id = \\x.x\nf = id (\\x.\\y.y)\nf (\\x.x) \\z.z z") `shouldBe`
         Right "\\z.z z"
+    it "bound variable has precedence over assignment" $ do
+      fmap show (parseThenEvalBeta "y = \\x.x\n\\y.y y") `shouldBe`
+        Right "\\y.y y"
