@@ -171,6 +171,8 @@ spec = do
     it "bound variable has precedence over assignment" $ do
       fmap show (parseThenEvalBeta "y = \\x.x\n\\y.y y") `shouldBe`
         Right "\\y.y y"
+    it "reassigns variable in terms of itself correctly" $ do
+      fmap show (parseThenEvalBeta "x=\\x.x\nx=x x\nx") `shouldBe` Right "\\x.x"
     it "fails when trying to assign expr with unbound var" $ do
       fmap show (parseThenEvalBeta "x = y") `shouldBe`
         Left (UnboundVariable "y")

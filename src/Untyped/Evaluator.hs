@@ -83,7 +83,7 @@ evalProgramWithContext stategy (Program (Assign name term:stmts)) = do
   case checkVarsAreBound c term of
     Left x -> return $ Left (UnboundVariable x)
     Right _ -> do
-      put (Map.insert name term c)
+      put (Map.insert name (replaceDeclaredVariables c term) c)
       evalProgramWithContext stategy (Program stmts)
 
 evalWithStrategy :: EvaluationStrategy -> Term -> Either RuntimeError Term
