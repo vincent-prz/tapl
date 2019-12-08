@@ -49,8 +49,8 @@ substitution x s (T_ABS (T_VAR y) t1) =
         then T_ABS (T_VAR y) (substitution x s t1)
         else T_ABS (T_VAR (pickFreshName y fv)) (substitution x s t1)
 
-checkVarsAreBound :: Term -> Either String ()
-checkVarsAreBound = g []
+checkVarsAreBound :: Context -> Term -> Either String ()
+checkVarsAreBound c = g (Map.keys c)
   where
     g :: [String] -> Term -> Either String ()
     g boundVars (T_VAR x)
@@ -75,16 +75,20 @@ evalProgramWithContext _ (Program []) = return (Right T_UNIT)
 evalProgramWithContext strategy (Program [Run t]) = do
   c <- get
   return $ evalWithStrategy strategy (replaceDeclaredVariables c t)
+-- run not in last position -> just discard it
 evalProgramWithContext strategy (Program (Run _:stmts)) =
   evalProgramWithContext strategy (Program stmts)
 evalProgramWithContext stategy (Program (Assign name term:stmts)) = do
   c <- get
-  put (Map.insert name term c)
-  evalProgramWithContext stategy (Program stmts)
+  case checkVarsAreBound c term of
+    Left x -> return $ Left (UnboundVariable x)
+    Right _ -> do
+      put (Map.insert name term c)
+      evalProgramWithContext stategy (Program stmts)
 
 evalWithStrategy :: EvaluationStrategy -> Term -> Either RuntimeError Term
 evalWithStrategy strategy term =
-  case checkVarsAreBound term of
+  case checkVarsAreBound Map.empty term of
     Left x -> Left (UnboundVariable x)
     Right _ -> Right (actualEval term)
   where
@@ -100,7 +104,7 @@ evalWithStrategy strategy term =
 verboseEvalWithStrategy ::
      EvaluationStrategy -> Term -> Either RuntimeError [Term]
 verboseEvalWithStrategy strategy term =
-  case checkVarsAreBound term of
+  case checkVarsAreBound Map.empty term of
     Left x -> Left (UnboundVariable x)
     Right _ -> Right (actualEval term)
   where

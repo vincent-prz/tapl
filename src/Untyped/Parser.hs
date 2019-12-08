@@ -47,6 +47,7 @@ newtype Program =
 -- FIXME: clean this
 instance Show Program where
   show (Program [Run s]) = show s
+  show (Program [Assign x t]) = x ++ " = " ++ show t
 
 data Statement
   = Assign String

@@ -157,13 +157,13 @@ spec = do
     it "correctly evals assign + reducible term using the assignment" $ do
       fmap show (parseThenEvalBeta "id = \\x.x\nid \\x.x x") `shouldBe`
         Right "\\x.x x"
-    it "correctly evals assign + reducible term using the assignment v2" $ do
+    it "correctly evals assignments made of previous assignments" $ do
       fmap show (parseThenEvalBeta "id = \\x.x\nf = id (\\x.\\y.y)\nf") `shouldBe`
         Right "\\x.\\y.y"
-    it "correctly evals assign + reducible term using the assignment v3" $ do
+    it "correctly evals assignments made of previous assignments v2" $ do
       fmap show (parseThenEvalBeta "id = \\x.x\nf = id (\\x.\\y.y)\nf \\x.x id") `shouldBe`
         Right "\\y.y"
-    it "correctly evals assign + reducible term using the assignment v4" $ do
+    it "correctly evals assignments made of previous assignments v3" $ do
       fmap
         show
         (parseThenEvalBeta "id = \\x.x\nf = id (\\x.\\y.y)\nf (\\x.x) \\z.z z") `shouldBe`
@@ -171,3 +171,7 @@ spec = do
     it "bound variable has precedence over assignment" $ do
       fmap show (parseThenEvalBeta "y = \\x.x\n\\y.y y") `shouldBe`
         Right "\\y.y y"
+    it "fails when trying to assign expr with unbound var" $ do
+      fmap show (parseThenEvalBeta "x = y") `shouldBe`
+        Left (UnboundVariable "y")
+    -- TODO: add a test which checks that "x = y\nx" fails with UnboundVariable x (and not Unboundvariable y)
