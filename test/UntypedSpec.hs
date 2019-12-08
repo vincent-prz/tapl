@@ -8,17 +8,19 @@ import Test.Hspec
 import Untyped.Evaluator
 import Untyped.Parser
 
-parseThenEval :: String -> Either RuntimeError Term
-parseThenEval input = first (const ParsingError) (fullParser input) >>= eval
+parseThenEvalCBV :: String -> Either RuntimeError Term
+parseThenEvalCBV input =
+  first (const ParsingError) (fullParser input) >>=
+  evalProgramFinalResult CallByValue
 
 parseThenEvalBeta :: String -> Either RuntimeError Term
 parseThenEvalBeta input =
-  first (const ParsingError) (fullParser input) >>= evalBeta
+  first (const ParsingError) (fullParser input) >>=
+  evalProgramFinalResult FullBeta
 
 parseThenVerboseEvalBeta :: String -> Either RuntimeError [Term]
 parseThenVerboseEvalBeta input =
-  first (const ParsingError) (fullParser input) >>=
-  verboseEvalWithStrategy FullBeta
+  first (const ParsingError) (fullParser input) >>= evalProgram FullBeta
 
 spec :: Spec
 spec = do
@@ -55,38 +57,40 @@ spec = do
     it "fails when unknown token" $ do isLeft (fullParser "x,x") `shouldBe` True
   describe "Untyped Parsing + Evaluating" $ do
     it "evaluates identity" $ do
-      fmap show (parseThenEval "\\x.x") `shouldBe` Right "\\x.x"
+      fmap show (parseThenEvalCBV "\\x.x") `shouldBe` Right "\\x.x"
     it "evaluates identity applied to itself" $ do
-      fmap show (parseThenEval "(\\x.x) (\\x.x)") `shouldBe` Right "\\x.x"
+      fmap show (parseThenEvalCBV "(\\x.x) (\\x.x)") `shouldBe` Right "\\x.x"
     it "evaluates definition of true" $ do
-      fmap show (parseThenEval "\\t.\\f.t") `shouldBe` Right "\\t.\\f.t"
+      fmap show (parseThenEvalCBV "\\t.\\f.t") `shouldBe` Right "\\t.\\f.t"
     it "evaluates not true to false" $ do
-      fmap show (parseThenEval "(\\b. b (\\t.\\f.f) (\\t.\\f.t)) \\t.\\f.t") `shouldBe`
+      fmap show (parseThenEvalCBV "(\\b. b (\\t.\\f.f) (\\t.\\f.t)) \\t.\\f.t") `shouldBe`
         Right "\\t.\\f.f"
     it "evaluates not false to true" $ do
-      fmap show (parseThenEval "(\\b. b (\\t.\\f.f) (\\t.\\f.t)) \\t.\\f.f") `shouldBe`
+      fmap show (parseThenEvalCBV "(\\b. b (\\t.\\f.f) (\\t.\\f.t)) \\t.\\f.f") `shouldBe`
         Right "\\t.\\f.t"
     it "evaluates succ zero to a term equivalent to one" $ do
-      fmap show (parseThenEval "(\\c.\\s.\\z.s (c s z)) \\s.\\z.z") `shouldBe`
+      fmap show (parseThenEvalCBV "(\\c.\\s.\\z.s (c s z)) \\s.\\z.z") `shouldBe`
         Right "\\s.\\z.s ((\\s.\\z.z) s z)"
     it "prevents variable capture" $ do
-      fmap show (parseThenEval "\\x.(\\x.x) x") `shouldBe` Right "\\x.(\\x.x) x"
+      fmap show (parseThenEvalCBV "\\x.(\\x.x) x") `shouldBe`
+        Right "\\x.(\\x.x) x"
     it "prevents variable capture v2" $ do
-      fmap show (parseThenEval "(\\y.\\x.x y) \\x.x") `shouldBe`
+      fmap show (parseThenEvalCBV "(\\y.\\x.x y) \\x.x") `shouldBe`
         Right "\\x.x \\x.x"
     it "prevents variable capture v3" $ do
-      fmap show (parseThenEval "(\\z.((\\x.\\z.x) z)) \\x.\\y.x y") `shouldBe`
+      fmap show (parseThenEvalCBV "(\\z.((\\x.\\z.x) z)) \\x.\\y.x y") `shouldBe`
         Right "\\z.\\x.\\y.x y"
     it "evaluates nested expression" $ do
-      fmap show (parseThenEval "(\\x.x) ((\\x.x) (\\z. (\\x.x) z))") `shouldBe`
+      fmap show (parseThenEvalCBV "(\\x.x) ((\\x.x) (\\z. (\\x.x) z))") `shouldBe`
         Right "\\z.(\\x.x) z"
     it "preserves bound variable" $ do
-      fmap show (parseThenEval "(\\y.(\\x.\\x.x) y) \\s.\\w.\\z.s w z") `shouldBe`
+      fmap show (parseThenEvalCBV "(\\y.(\\x.\\x.x) y) \\s.\\w.\\z.s w z") `shouldBe`
         Right "\\x.x"
     it "fails on unbound variable" $ do
-      fmap show (parseThenEval "x") `shouldBe` Left (UnboundVariable "x")
+      fmap show (parseThenEvalCBV "x") `shouldBe` Left (UnboundVariable "x")
     it "fails on unbound variable inside simple application" $ do
-      fmap show (parseThenEval "\\x.x y") `shouldBe` Left (UnboundVariable "y")
+      fmap show (parseThenEvalCBV "\\x.x y") `shouldBe`
+        Left (UnboundVariable "y")
   describe "Untyped Beta evaluation" $ do
     it "fully reduces \\x. (\\y.y) x" $ do
       fmap show (parseThenEvalBeta "\\x. (\\y.y) x") `shouldBe` Right "\\x.x"
@@ -127,7 +131,7 @@ spec = do
     it "fails on unbound variable inside simple application" $ do
       fmap show (parseThenEvalBeta "\\x.x y") `shouldBe`
         Left (UnboundVariable "y")
-  describe "Verbose Untyped Beta evaluation" $ do
+  describe "Untyped Beta evaluation with all reduction terms kept" $ do
     it "fully reduces \\x. (\\y.y) x" $ do
       fmap (map show) (parseThenVerboseEvalBeta "\\x. (\\y.y) x") `shouldBe`
         Right ["\\x.(\\y.y) x", "\\x.x"]
@@ -141,3 +145,38 @@ spec = do
           , "\\z.(\\x.x) z"
           , "\\z.z"
           ]
+  describe "Untyped multiline Beta evaluation" $ do
+    it "correctly evals the empty program" $ do
+      fmap show (parseThenEvalBeta "") `shouldBe` Right "()"
+    it "correctly evals 2 terms" $ do
+      fmap show (parseThenEvalBeta "\\x.x x\n\\x.x") `shouldBe` Right "\\x.x"
+    it "correctly evals single assign" $ do
+      fmap show (parseThenEvalBeta "id = \\x.x x") `shouldBe` Right "()"
+    it "correctly evals assign + term" $ do
+      fmap show (parseThenEvalBeta "f = \\x.x x\n\\x.x") `shouldBe`
+        Right "\\x.x"
+    it "correctly evals assign + term using the assignment" $ do
+      fmap show (parseThenEvalBeta "id = \\x.x\nid") `shouldBe` Right "\\x.x"
+    it "correctly evals assign + reducible term using the assignment" $ do
+      fmap show (parseThenEvalBeta "id = \\x.x\nid \\x.x x") `shouldBe`
+        Right "\\x.x x"
+    it "correctly evals assignments made of previous assignments" $ do
+      fmap show (parseThenEvalBeta "id = \\x.x\nf = id (\\x.\\y.y)\nf") `shouldBe`
+        Right "\\x.\\y.y"
+    it "correctly evals assignments made of previous assignments v2" $ do
+      fmap show (parseThenEvalBeta "id = \\x.x\nf = id (\\x.\\y.y)\nf \\x.x id") `shouldBe`
+        Right "\\y.y"
+    it "correctly evals assignments made of previous assignments v3" $ do
+      fmap
+        show
+        (parseThenEvalBeta "id = \\x.x\nf = id (\\x.\\y.y)\nf (\\x.x) \\z.z z") `shouldBe`
+        Right "\\z.z z"
+    it "bound variable has precedence over assignment" $ do
+      fmap show (parseThenEvalBeta "y = \\x.x\n\\y.y y") `shouldBe`
+        Right "\\y.y y"
+    it "reassigns variable in terms of itself correctly" $ do
+      fmap show (parseThenEvalBeta "x=\\x.x\nx=x x\nx") `shouldBe` Right "\\x.x"
+    it "fails when trying to assign expr with unbound var" $ do
+      fmap show (parseThenEvalBeta "x = y") `shouldBe`
+        Left (UnboundVariable "y")
+    -- TODO: add a test which checks that "x = y\nx" fails with UnboundVariable x (and not Unboundvariable y)

@@ -6,10 +6,10 @@ import Untyped.Evaluator
 import Untyped.Parser
 
 import qualified Data.Map as Map
-import Miso hiding (Options)
+import Miso
 import Miso.String hiding (map, null)
 
-data Options = Options
+data EvalOpts = EvalOpts
   { verbose :: Bool
   , strategy :: EvaluationStrategy
   } deriving (Eq)
@@ -23,7 +23,7 @@ maxLevel :: Int
 maxLevel = 4
 
 data Model = Model
-  { opts :: Options
+  { opts :: EvalOpts
   , input :: MisoString
   , tutorialState :: TutorialState
   } deriving (Eq)
@@ -38,8 +38,8 @@ data Action
   | NoOp
   deriving (Eq)
 
-defaultOpts :: Options
-defaultOpts = Options True FullBeta
+defaultOpts :: EvalOpts
+defaultOpts = EvalOpts True FullBeta
 
 valueToEvaluationStrategy :: MisoString -> EvaluationStrategy
 valueToEvaluationStrategy "0" = CallByValue
@@ -47,14 +47,14 @@ valueToEvaluationStrategy "1" = FullBeta
 valueToEvaluationStrategy v =
   error $ "unrecognized value for evaluation strategy :" ++ fromMisoString v
 
-processInput :: Options -> String -> [String]
+processInput :: EvalOpts -> String -> [String]
 processInput opts input =
   let parseResult = Untyped.Parser.fullParser input
    in case parseResult of
         Left err -> [show err]
         Right t -> reduceTerm opts t
 
-reduceTerm :: Options -> Term -> [String]
+reduceTerm :: EvalOpts -> Term -> [String]
 reduceTerm opts t =
   if verbose opts
     then case verboseEvalWithStrategy (strategy opts) t of
@@ -64,7 +64,7 @@ reduceTerm opts t =
            Left err -> [show err]
            Right t' -> [show t']
 
-quieter :: Options -> String -> [String]
+quieter :: EvalOpts -> String -> [String]
 quieter opts input =
   if null input
     then []
@@ -103,9 +103,9 @@ updateModel :: Action -> Model -> Effect Action Model
 updateModel action m =
   case action of
     ChangeInput newInput -> noEff $ m {input = newInput}
-    ChangeVerbose v -> noEff $ m {opts = Options v (strategy (opts m))}
+    ChangeVerbose v -> noEff $ m {opts = EvalOpts v (strategy (opts m))}
     ChangeEvalStrategy strat ->
-      noEff $ m {opts = Options (verbose (opts m)) strat}
+      noEff $ m {opts = EvalOpts (verbose (opts m)) strat}
     ToggleTutorial ->
       noEff $
       m

@@ -1,6 +1,10 @@
 module Untyped.Evaluator where
 
-import Untyped.Parser (Term(..))
+import Control.Monad.State
+import qualified Data.Map as Map
+import Data.Maybe (fromMaybe)
+import Lib.Lib
+import Untyped.Parser (Program(..), Statement(..), Term(..))
 
 data RuntimeError
   = ParsingError
@@ -11,6 +15,8 @@ data EvaluationStrategy
   = CallByValue
   | FullBeta
   deriving (Eq, Ord)
+
+type Context = Map.Map String Term
 
 getFreeVars :: Term -> [String]
 getFreeVars = g []
@@ -46,8 +52,8 @@ substitution x s (T_ABS (T_VAR y) t1) =
         then T_ABS (T_VAR y) (substitution x s t1)
         else T_ABS (T_VAR (pickFreshName y fv)) (substitution x s t1)
 
-checkVarsAreBound :: Term -> Either String ()
-checkVarsAreBound = g []
+checkVarsAreBound :: Context -> Term -> Either String ()
+checkVarsAreBound c = g (Map.keys c)
   where
     g :: [String] -> Term -> Either String ()
     g boundVars (T_VAR x)
@@ -57,30 +63,43 @@ checkVarsAreBound = g []
     g boundVars (T_ABS (T_VAR x) t) = g (x : boundVars) t
 
 getEvalFromStrategy :: EvaluationStrategy -> (Term -> Term)
-getEvalFromStrategy CallByValue = eval1Step
+getEvalFromStrategy CallByValue = eval1StepCallByValue
 getEvalFromStrategy FullBeta = evalBeta1Step
 
-evalWithStrategy :: EvaluationStrategy -> Term -> Either RuntimeError Term
-evalWithStrategy strategy term =
-  case checkVarsAreBound term of
-    Left x -> Left (UnboundVariable x)
-    Right _ -> Right (actualEval term)
-  where
-    actualEval t =
-      let evalFunc = getEvalFromStrategy strategy
-          newTerm = evalFunc t
-       in if newTerm == t
-            then newTerm
-            else actualEval newTerm
+-- only keep final reduction
+evalProgramFinalResult ::
+     EvaluationStrategy -> Program -> Either RuntimeError Term
+evalProgramFinalResult strategy p =
+  fromMaybe T_UNIT <$> (lastMay <$> evalProgram strategy p)
 
--- also returns intermediary steps
-verboseEvalWithStrategy ::
-     EvaluationStrategy -> Term -> Either RuntimeError [Term]
-verboseEvalWithStrategy strategy term =
-  case checkVarsAreBound term of
+evalProgram :: EvaluationStrategy -> Program -> Either RuntimeError [Term]
+evalProgram strategy program =
+  evalState (evalProgramWithContext strategy program) Map.empty
+
+evalProgramWithContext ::
+     EvaluationStrategy -> Program -> State Context (Either RuntimeError [Term])
+evalProgramWithContext _ (Program []) = return $ Right [T_UNIT]
+evalProgramWithContext strategy (Program [Run t]) = do
+  c <- get
+  return $ evalTerm strategy (replaceDeclaredVariables c t)
+-- run not in last position -> just discard it
+evalProgramWithContext strategy (Program (Run _:stmts)) =
+  evalProgramWithContext strategy (Program stmts)
+evalProgramWithContext strategy (Program (Assign name term:stmts)) = do
+  c <- get
+  case checkVarsAreBound c term of
+    Left x -> return $ Left (UnboundVariable x)
+    Right _ -> do
+      put (Map.insert name (replaceDeclaredVariables c term) c)
+      evalProgramWithContext strategy (Program stmts)
+
+evalTerm :: EvaluationStrategy -> Term -> Either RuntimeError [Term]
+evalTerm strategy term =
+  case checkVarsAreBound Map.empty term of
     Left x -> Left (UnboundVariable x)
     Right _ -> Right (actualEval term)
   where
+    actualEval :: Term -> [Term]
     actualEval t =
       let evalFunc = getEvalFromStrategy strategy
           newTerm = evalFunc t
@@ -88,20 +107,27 @@ verboseEvalWithStrategy strategy term =
             then [newTerm]
             else t : actualEval newTerm
 
--- call by value
-eval :: Term -> Either RuntimeError Term
-eval = evalWithStrategy CallByValue
+-- replace declared vars with their actual content
+replaceDeclaredVariables :: Context -> Term -> Term
+replaceDeclaredVariables c t@(T_VAR x) =
+  case Map.lookup x c of
+    Nothing -> t
+    Just t1 -> replaceDeclaredVariables (Map.delete x c) t1
+replaceDeclaredVariables c (T_APP t1 t2) =
+  T_APP (replaceDeclaredVariables c t1) (replaceDeclaredVariables c t2)
+replaceDeclaredVariables c (T_ABS (T_VAR x) t) =
+  T_ABS (T_VAR x) (replaceDeclaredVariables (Map.delete x c) t)
 
-eval1Step :: Term -> Term
-eval1Step (T_APP (T_ABS (T_VAR x) t12) v2@(T_ABS _ _)) = substitution x v2 t12
-eval1Step (T_APP v1@(T_ABS _ _) t2) = T_APP v1 (eval1Step t2)
-eval1Step (T_APP t1 t2) = T_APP (eval1Step t1) t2
-eval1Step t = t
+-- call by value
+eval1StepCallByValue :: Term -> Term
+eval1StepCallByValue (T_APP (T_ABS (T_VAR x) t12) v2@(T_ABS _ _)) =
+  substitution x v2 t12
+eval1StepCallByValue (T_APP v1@(T_ABS _ _) t2) =
+  T_APP v1 (eval1StepCallByValue t2)
+eval1StepCallByValue (T_APP t1 t2) = T_APP (eval1StepCallByValue t1) t2
+eval1StepCallByValue t = t
 
 -- beta evaluation
-evalBeta :: Term -> Either RuntimeError Term
-evalBeta = evalWithStrategy FullBeta
-
 evalBeta1Step :: Term -> Term
 evalBeta1Step (T_APP (T_ABS (T_VAR x) t12) t2) = substitution x t2 t12
 evalBeta1Step (T_APP t1 t2) = T_APP (evalBeta1Step t1) (evalBeta1Step t2)
