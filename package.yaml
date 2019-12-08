@@ -27,6 +27,7 @@ library:
   dependencies:
   - parsec
   - containers
+  - mtl
 
 executables:
   tapl-exe:

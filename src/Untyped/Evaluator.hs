@@ -1,5 +1,6 @@
 module Untyped.Evaluator where
 
+import Control.Monad.State
 import qualified Data.Map as Map
 import Untyped.Parser (Program(..), Statement(..), Term(..))
 
@@ -65,17 +66,21 @@ getEvalFromStrategy FullBeta = evalBeta1Step
 -- TODO: make notation more consistent, eg rename eval in evalCallbyValue,
 -- and evalWithStrategy in eval
 evalProgram :: EvaluationStrategy -> Program -> Either RuntimeError Term
-evalProgram strategy program = evalProgramWithContext strategy Map.empty program
+evalProgram strategy program =
+  evalState (evalProgramWithContext strategy program) Map.empty
 
 evalProgramWithContext ::
-     EvaluationStrategy -> Context -> Program -> Either RuntimeError Term
-evalProgramWithContext strategy c (Program []) = Right T_UNIT
-evalProgramWithContext strategy c (Program [Run t]) =
-  evalWithStrategy strategy (replaceDeclaredVariables c t)
-evalProgramWithContext strategy c (Program (Run _:stmts)) =
-  evalProgramWithContext strategy c (Program stmts)
-evalProgramWithContext strategy c (Program (Assign name term:stmts)) =
-  evalProgramWithContext strategy (Map.insert name term c) (Program stmts)
+     EvaluationStrategy -> Program -> State Context (Either RuntimeError Term)
+evalProgramWithContext _ (Program []) = return (Right T_UNIT)
+evalProgramWithContext strategy (Program [Run t]) = do
+  c <- get
+  return $ evalWithStrategy strategy (replaceDeclaredVariables c t)
+evalProgramWithContext strategy (Program (Run _:stmts)) =
+  evalProgramWithContext strategy (Program stmts)
+evalProgramWithContext stategy (Program (Assign name term:stmts)) = do
+  c <- get
+  put (Map.insert name term c)
+  evalProgramWithContext stategy (Program stmts)
 
 evalWithStrategy :: EvaluationStrategy -> Term -> Either RuntimeError Term
 evalWithStrategy strategy term =
