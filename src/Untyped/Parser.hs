@@ -2,6 +2,7 @@ module Untyped.Parser where
 
 import Control.Monad
 import Data.Functor
+import Data.List (intercalate)
 import Text.Parsec.Prim hiding (try)
 import Text.ParserCombinators.Parsec
 
@@ -44,16 +45,17 @@ lexer input = parse (parseTokens <* eof) "lexing error" input
 newtype Program =
   Program [Statement]
 
--- FIXME: clean this
 instance Show Program where
-  show (Program [Run s]) = show s
-  show (Program [Assign x t]) = x ++ " = " ++ show t
+  show (Program stmts) = intercalate "\n" (map show stmts)
 
 data Statement
   = Assign String
            Term
   | Run Term
-  deriving (Show)
+
+instance Show Statement where
+  show (Run s) = show s
+  show (Assign x t) = x ++ " = " ++ show t
 
 -- TODO: T_ABS should be String -> Term -> Term
 data Term
