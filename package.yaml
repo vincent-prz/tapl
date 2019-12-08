@@ -41,6 +41,8 @@ executables:
     dependencies:
     - tapl
     - haskeline
+    - containers
+    - mtl
 
 tests:
   tapl-test:
