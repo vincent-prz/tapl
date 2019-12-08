@@ -26,6 +26,8 @@ library:
   source-dirs: src
   dependencies:
   - parsec
+  - containers
+  - mtl
 
 executables:
   tapl-exe:
@@ -39,6 +41,8 @@ executables:
     dependencies:
     - tapl
     - haskeline
+    - containers
+    - mtl
 
 tests:
   tapl-test:

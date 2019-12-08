@@ -1,58 +1,63 @@
 module Main where
 
+import Control.Monad.State
 import Data.List (intercalate)
+import qualified Data.Map as Map
+import Lib.Lib
 import System.Console.Haskeline
 import Untyped.Evaluator
 import Untyped.Parser
 
-data Options = Options
+data EvalOpts = EvalOpts
   { verbose :: Bool
   , strategy :: EvaluationStrategy
   }
 
-defaultOptions :: Options
-defaultOptions = Options False CallByValue
+defaultOpts :: EvalOpts
+defaultOpts = EvalOpts False CallByValue
 
-processInput :: Options -> String -> String
+processInput :: EvalOpts -> String -> State Context String
 processInput opts input =
-  let parseResult = Untyped.Parser.fullParser input
+  let parseResult = fullParser input
    in case parseResult of
-        Left err -> show err
-        Right t -> reduceTerm opts t
+        Left err -> return $ show err
+        Right program -> runProgram opts program
 
-reduceTerm :: Options -> Term -> String
-reduceTerm opts t =
-  if verbose opts
-    then case verboseEvalWithStrategy (strategy opts) t of
-           Left err -> show err
-           Right ts -> intercalate "\n" (map show ts)
-    else case evalWithStrategy (strategy opts) t of
-           Left err -> show err
-           Right t' -> show t'
+runProgram :: EvalOpts -> Program -> State Context String
+runProgram opts program = do
+  result <- evalProgramWithContext (strategy opts) program
+  case result of
+    Left err -> return $ show err
+    Right ts ->
+      return $
+      if verbose opts
+        then intercalate "\n" (map show ts)
+        else maybe "oops, something went wrong" show (lastMay ts)
 
 main :: IO ()
 main =
   putStrLn "Untyped lambda calculus REPL" >>
-  runInputT defaultSettings (loop defaultOptions)
+  runInputT defaultSettings (loop defaultOpts Map.empty)
   where
-    loop :: Options -> InputT IO ()
-    loop opts = do
+    loop :: EvalOpts -> Context -> InputT IO ()
+    loop opts c = do
       minput <- getInputLine "> "
       case minput of
         Nothing -> return ()
         Just ":quit" -> return ()
         Just ":cbv" -> do
           outputStrLn "Switching to call by value evaluation mode."
-          loop (Options (verbose opts) CallByValue)
+          loop (opts {strategy = CallByValue}) c
         Just ":beta" -> do
           outputStrLn "Switching to full beta reduction evaluation mode."
-          loop (Options (verbose opts) FullBeta)
+          loop (opts {strategy = FullBeta}) c
         Just ":verbose on" -> do
           outputStrLn "Enabling verbose mode."
-          loop (Options True (strategy opts))
+          loop (opts {verbose = True}) c
         Just ":verbose off" -> do
           outputStrLn "Disabling verbose mode."
-          loop (Options False (strategy opts))
+          loop (opts {verbose = False}) c
         Just input -> do
-          outputStrLn $ processInput opts input
-          loop opts
+          let (output, newC) = runState (processInput opts input) c
+          outputStrLn output
+          loop opts newC
