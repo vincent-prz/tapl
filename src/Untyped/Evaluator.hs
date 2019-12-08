@@ -2,6 +2,8 @@ module Untyped.Evaluator where
 
 import Control.Monad.State
 import qualified Data.Map as Map
+import Data.Maybe (fromMaybe)
+import Lib.Lib
 import Untyped.Parser (Program(..), Statement(..), Term(..))
 
 data RuntimeError
@@ -63,44 +65,35 @@ getEvalFromStrategy :: EvaluationStrategy -> (Term -> Term)
 getEvalFromStrategy CallByValue = eval1StepCallByValue
 getEvalFromStrategy FullBeta = evalBeta1Step
 
-evalProgram :: EvaluationStrategy -> Program -> Either RuntimeError Term
+-- only keep final reduction
+evalProgramFinalResult ::
+     EvaluationStrategy -> Program -> Either RuntimeError Term
+evalProgramFinalResult strategy p =
+  fromMaybe T_UNIT <$> (lastMay <$> evalProgram strategy p)
+
+evalProgram :: EvaluationStrategy -> Program -> Either RuntimeError [Term]
 evalProgram strategy program =
   evalState (evalProgramWithContext strategy program) Map.empty
 
 evalProgramWithContext ::
-     EvaluationStrategy -> Program -> State Context (Either RuntimeError Term)
-evalProgramWithContext _ (Program []) = return (Right T_UNIT)
+     EvaluationStrategy -> Program -> State Context (Either RuntimeError [Term])
+evalProgramWithContext _ (Program []) = return $ Right [T_UNIT]
 evalProgramWithContext strategy (Program [Run t]) = do
   c <- get
   return $ evalTerm strategy (replaceDeclaredVariables c t)
 -- run not in last position -> just discard it
 evalProgramWithContext strategy (Program (Run _:stmts)) =
   evalProgramWithContext strategy (Program stmts)
-evalProgramWithContext stategy (Program (Assign name term:stmts)) = do
+evalProgramWithContext strategy (Program (Assign name term:stmts)) = do
   c <- get
   case checkVarsAreBound c term of
     Left x -> return $ Left (UnboundVariable x)
     Right _ -> do
       put (Map.insert name (replaceDeclaredVariables c term) c)
-      evalProgramWithContext stategy (Program stmts)
+      evalProgramWithContext strategy (Program stmts)
 
-evalTerm :: EvaluationStrategy -> Term -> Either RuntimeError Term
+evalTerm :: EvaluationStrategy -> Term -> Either RuntimeError [Term]
 evalTerm strategy term =
-  case checkVarsAreBound Map.empty term of
-    Left x -> Left (UnboundVariable x)
-    Right _ -> Right (actualEval term)
-  where
-    actualEval :: Term -> Term
-    actualEval t =
-      let evalFunc = getEvalFromStrategy strategy
-          newTerm = evalFunc t
-       in if newTerm == t
-            then newTerm
-            else actualEval newTerm
-
--- also returns intermediary steps
-verboseEvalTerm :: EvaluationStrategy -> Term -> Either RuntimeError [Term]
-verboseEvalTerm strategy term =
   case checkVarsAreBound Map.empty term of
     Left x -> Left (UnboundVariable x)
     Right _ -> Right (actualEval term)
@@ -113,7 +106,7 @@ verboseEvalTerm strategy term =
             then [newTerm]
             else t : actualEval newTerm
 
--- replace declared vars with their actial content
+-- replace declared vars with their actual content
 replaceDeclaredVariables :: Context -> Term -> Term
 replaceDeclaredVariables c t@(T_VAR x) =
   case Map.lookup x c of

@@ -10,14 +10,15 @@ import Untyped.Parser
 
 parseThenEval :: String -> Either RuntimeError Term
 parseThenEval input =
-  first (const ParsingError) (fullParser input) >>= evalProgram CallByValue
+  first (const ParsingError) (fullParser input) >>=
+  evalProgramFinalResult CallByValue
 
 parseThenEvalBeta :: String -> Either RuntimeError Term
 parseThenEvalBeta input =
-  first (const ParsingError) (fullParser input) >>= evalProgram FullBeta
+  first (const ParsingError) (fullParser input) >>=
+  evalProgramFinalResult FullBeta
 
--- FIXME: rechange this
-parseThenVerboseEvalBeta :: String -> Either RuntimeError Term
+parseThenVerboseEvalBeta :: String -> Either RuntimeError [Term]
 parseThenVerboseEvalBeta input =
   first (const ParsingError) (fullParser input) >>= evalProgram FullBeta
 
@@ -128,20 +129,20 @@ spec = do
     it "fails on unbound variable inside simple application" $ do
       fmap show (parseThenEvalBeta "\\x.x y") `shouldBe`
         Left (UnboundVariable "y")
-  --describe "Verbose Untyped Beta evaluation" $ do
-  --  it "fully reduces \\x. (\\y.y) x" $ do
-  --    fmap (map show) (parseThenVerboseEvalBeta "\\x. (\\y.y) x") `shouldBe`
-  --      Right ["\\x.(\\y.y) x", "\\x.x"]
-  --  it "fully reduces nested expression" $ do
-  --    fmap
-  --      (map show)
-  --      (parseThenVerboseEvalBeta "(\\x.x) ((\\x.x) (\\z. (\\x.x) z))") `shouldBe`
-  --      Right
-  --        [ "(\\x.x) ((\\x.x) \\z.(\\x.x) z)"
-  --        , "(\\x.x) \\z.(\\x.x) z"
-  --        , "\\z.(\\x.x) z"
-  --        , "\\z.z"
-  --        ]
+  describe "Untyped Beta evaluation with all reduction terms kept" $ do
+    it "fully reduces \\x. (\\y.y) x" $ do
+      fmap (map show) (parseThenVerboseEvalBeta "\\x. (\\y.y) x") `shouldBe`
+        Right ["\\x.(\\y.y) x", "\\x.x"]
+    it "fully reduces nested expression" $ do
+      fmap
+        (map show)
+        (parseThenVerboseEvalBeta "(\\x.x) ((\\x.x) (\\z. (\\x.x) z))") `shouldBe`
+        Right
+          [ "(\\x.x) ((\\x.x) \\z.(\\x.x) z)"
+          , "(\\x.x) \\z.(\\x.x) z"
+          , "\\z.(\\x.x) z"
+          , "\\z.z"
+          ]
   describe "Untyped multiline Beta evaluation" $ do
     it "correctly evals the empty program" $ do
       fmap show (parseThenEvalBeta "") `shouldBe` Right "()"
