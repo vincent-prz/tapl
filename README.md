@@ -4,24 +4,16 @@ Haskell implementation of the lambda calculi covered in the [Types and Programmi
 
 # How to run it
 
-The following command will spawn a warp server on port 3003, with a lambda calculus interpreter. NOTE: it doesn't work in Firefox, apparently because of [a JSaddle bug](https://github.com/ghcjs/jsaddle/issues/64).
+The following command will spawn a warp server on port 8080, with a lambda calculus interpreter. NOTE: it doesn't work in Firefox, apparently because of [a JSaddle bug](https://github.com/ghcjs/jsaddle/issues/64).
 
 ```
-nix-shell -A shells.ghc --run 'cabal v2-run tapl-exe'
+nix-shell --run reload
 ```
 
 # How to build it
 
-GHC:
-
 ```
-> nix-build -A ghc.tapl
-```
-
-GHCJS:
-
-```
-> nix-build -A ghcjs.tapl
+nix-build -A release
 ```
 
 # Examples
