@@ -24,6 +24,7 @@ library
       Arith.Parser
       Untyped.Evaluator
       Untyped.Parser
+      Lib.Lib
   other-modules:
       Paths_tapl
   hs-source-dirs:
