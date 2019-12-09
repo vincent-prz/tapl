@@ -1,5 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE CPP #-}
+
+module Main where
 
 import TutorialText
 import Untyped.Evaluator
@@ -8,7 +11,12 @@ import Untyped.Parser
 import qualified Data.Map as Map
 import Miso
 import Miso.String hiding (map, null)
-
+-- | JSAddle import
+#ifndef __GHCJS__
+import Language.Javascript.JSaddle.Warp as JSaddle
+import qualified Network.Wai.Handler.Warp as Warp
+import Network.WebSockets
+#endif
 data EvalOpts = EvalOpts
   { verbose :: Bool
   , strategy :: EvaluationStrategy
@@ -37,7 +45,16 @@ data Action
   | NextLevel
   | NoOp
   deriving (Eq)
-
+#ifndef __GHCJS__
+runApp :: JSM () -> IO ()
+runApp f =
+  Warp.runSettings
+    (Warp.setPort 8080 (Warp.setTimeout 3600 Warp.defaultSettings)) =<<
+  JSaddle.jsaddleOr defaultConnectionOptions (f >> syncPoint) JSaddle.jsaddleApp
+#else
+runApp :: IO () -> IO ()
+runApp app = app
+#endif
 defaultOpts :: EvalOpts
 defaultOpts = EvalOpts True FullBeta
 
@@ -71,7 +88,7 @@ quieter opts input =
     else processInput opts input
 
 main :: IO ()
-main = startApp App {..}
+main = runApp $ startApp App {..}
   where
     initialAction = NoOp
     model =
