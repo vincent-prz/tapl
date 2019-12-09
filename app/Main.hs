@@ -31,7 +31,6 @@ data CodeSample = CodeSample
 data Model = Model
   { opts :: EvalOpts
   , input :: MisoString
-  , codeSampleIndex :: Int
   , codeSample :: CodeSample
   } deriving (Eq)
 
@@ -86,7 +85,6 @@ main = runApp $ startApp App {..}
       Model
         { opts = defaultOpts
         , input = code $ Prelude.head codeSampleList
-        , codeSampleIndex = 0
         , codeSample = Prelude.head codeSampleList
         }
     update = updateModel -- update function
@@ -99,28 +97,33 @@ codeSampleList :: [CodeSample]
 codeSampleList =
   [ CodeSample
       { title = "The Identity function"
-      , code = "id=\\x.x\nid"
-      , excerpt = "hello"
+      , code = "id = \\x.x\nid \\x.x x"
+      , excerpt =
+          "The identity function is the simplest function you can build."
       }
   , CodeSample
       { title = "Booleans"
-      , code = "true = \\t.\\f.t\nfalse = \\t.\\f.f"
-      , excerpt = "hello"
+      , code =
+          "true = \\t.\\f.t\nfalse = \\t.\\f.f\nnot = \\b.b false true\nnot true"
+      , excerpt =
+          "Here is how booleans can be encoded in the lambda calculus. Can you build the `and` function ? `Or`, `xor`, etc..."
+      }
+  , CodeSample
+      { title = "Numbers"
+      , code =
+          "0 = \\s.\\z.z\n1 = \\s.\\z.s z\n2 = \\s.\\z.s (s z)\nsucc = \\n.\\s.\\z.s (n s z)\nsucc 1"
+      , excerpt =
+          "Here is an encoding of numbers. The idea is: a number `n` is a function which applies `n` times its first argument `s` to its second argument `z`."
+      }
+  , CodeSample
+      { title = "Numbers: Addition"
+      , code =
+          "0 = \\s.\\z.z\n1 = \\s.\\z.s z\n2 = \\s.\\z.s (s z)\nsucc = \\n.\\s.\\z.s (n s z)\nplus = \\m.\\n.\\s.\\z.m s (n s z)\nplus 2 2"
+      , excerpt =
+          "Here is how addition would be defined. Can you define the multiplication ?"
       }
   ]
 
---getTutorialInput :: TutorialState -> MisoString
---getTutorialInput TutorialOff = ""
---getTutorialInput (Level 0) = "\\x.x"
---getTutorialInput (Level 1) = "\\x.x x"
---getTutorialInput (Level 2) = "(\\x.x) \\x.x x"
---getTutorialInput (Level 3) = "(\\x.x) \\x.x x"
---getTutorialInput (Level 4) = "\\x.\\y.y"
---getTutorialInput (Level 5) = "(\\x.\\y.y) (\\x.x) \\z.z"
---getTutorialInput (Level 6) = "\\x.\\y.\\z.(x y) z"
---getTutorialInput (Level 7) = "\\x.x \\y.y"
---getTutorialInput (Level n) = error $ "input not configured for " ++ show n
---
 -- FIXME: clunkyness with records
 updateModel :: Action -> Model -> Effect Action Model
 updateModel action m =
@@ -131,21 +134,9 @@ updateModel action m =
       noEff $ m {opts = EvalOpts (verbose (opts m)) strat}
     ChangeSample ind ->
       let cs = codeSampleList !! ind
-       in noEff $ m {input = code cs, codeSampleIndex = ind, codeSample = cs}
+       in noEff $ m {input = code cs, codeSample = cs}
     NoOp -> noEff m
 
---viewTutorialText :: TutorialState -> View Action
---viewTutorialText TutorialOff = div_ [] []
---viewTutorialText (Level n) =
---  case (,) <$> Map.lookup n levelToTitleMap <*> Map.lookup n levelToTextMap of
---    Nothing -> error $ "title or text not defined for level " ++ show n
---    Just (title, txt) ->
---      div_
---        []
---        [ p_ [] [text (displayLevel n <> ": " <> title)]
---        , p_ [style_ paragraphStyle] [text txt]
---        ]
---
 paragraphStyle :: Map.Map MisoString MisoString
 paragraphStyle = Map.singleton "width" "50%"
 
@@ -162,7 +153,7 @@ viewModel m =
     []
     [ p_
         [style_ paragraphStyle]
-        [ "This is a repl for the lambda calculus language. You can type any expression you like, or go through the tutorial to know more about lambda calculus, and build features that you would find in today's mainstream languages (eg Python, Javascript, Java ...) along the way. This is a work in progress. I hope you'll find it useful."
+        [ "This is a repl for the lambda calculus language. You can type any expression you like, and / or take a look at the code samples, which show how to build features that you would find in today's mainstream languages (eg Python, Javascript, Java, etc). This is a work in progress. I hope you'll find it useful."
         ]
     , div_
         []
@@ -191,7 +182,10 @@ viewModel m =
                 ["Full Beta reduction"]
             ]
         ]
-    , textarea_ [cols_ "50", defaultValue_ (input m), onInput ChangeInput] []
+    , p_ [style_ paragraphStyle] [text $ excerpt $ codeSample m]
+    , textarea_
+        [rows_ "10", cols_ "50", value_ (input m), onInput ChangeInput]
+        [text $ input m]
     , div_
         []
         (map viewSingleStep (processInput (opts m) (fromMisoString $ input m)))
