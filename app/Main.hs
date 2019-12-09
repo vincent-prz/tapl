@@ -185,7 +185,7 @@ viewModel m =
     , p_ [style_ paragraphStyle] [text $ excerpt $ codeSample m]
     , textarea_
         [rows_ "10", cols_ "50", value_ (input m), onInput ChangeInput]
-        [text $ input m]
+        []
     , div_
         []
         (map viewSingleStep (processInput (opts m) (fromMisoString $ input m)))
