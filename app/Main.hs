@@ -4,6 +4,7 @@
 
 module Main where
 
+import Data.List
 import Lib.Lib
 import Untyped.Evaluator
 import Untyped.Parser
@@ -137,12 +138,6 @@ updateModel action m =
        in noEff $ m {input = code cs, codeSample = cs}
     NoOp -> noEff m
 
-paragraphStyle :: Map.Map MisoString MisoString
-paragraphStyle = Map.singleton "width" "50%"
-
-viewSingleStep :: String -> View Action
-viewSingleStep step = p_ [] [text $ toMisoString step]
-
 viewCodeSampleOption :: CodeSample -> Int -> View Action
 viewCodeSampleOption cs ind =
   option_ [value_ $ toMisoString $ show ind] [text $ title cs]
@@ -151,42 +146,69 @@ viewModel :: Model -> View Action
 viewModel m =
   div_
     []
-    [ p_
-        [style_ paragraphStyle]
-        [ "This is a repl for the lambda calculus language. You can type any expression you like, and / or take a look at the code samples, which show how to build features that you would find in today's mainstream languages (eg Python, Javascript, Java, etc). This is a work in progress. I hope you'll find it useful."
+    [ link_
+        [ rel_ "stylesheet"
+        , href_ "https://cdn.jsdelivr.net/npm/bulma@0.8.0/css/bulma.min.css"
+        ]
+    --, p_
+    --    [style_ paragraphStyle]
+    --    [ "This is a repl for the lambda calculus language. You can type any expression you like, and / or take a look at the code samples, which show how to build features that you would find in today's mainstream languages (eg Python, Javascript, Java, etc). This is a work in progress. I hope you'll find it useful."
+    --    ]
+    , div_
+        [style_ $ Map.fromList [("width", "100%")]]
+        [ div_
+            [class_ "select is-primary"]
+            [ select_
+                [ on "change" valueDecoder $
+                  ChangeSample . read . fromMisoString
+                ]
+                (mapWithIndex viewCodeSampleOption codeSampleList)
+            ]
+        , div_
+            [class_ "select is-primary"]
+            [ select_
+                [ on "change" valueDecoder $
+                  ChangeVerbose . toEnum . read . fromMisoString
+                ]
+                [ option_ [value_ "1"] ["Print all reductions steps"]
+                , option_ [value_ "0"] ["Print only the output"]
+                ]
+            ]
+        , div_
+            [class_ "select is-primary"]
+            [ select_
+                [ on "change" valueDecoder $
+                  ChangeEvalStrategy . valueToEvaluationStrategy
+                ]
+                [ option_ [value_ "0"] ["Call by value"]
+                , option_ [value_ "1"] ["Full Beta reduction"]
+                ]
+            ]
         ]
     , div_
-        []
-        [ span_ [] ["Samples"]
-        , select_
-            [on "change" valueDecoder $ ChangeSample . read . fromMisoString]
-            (mapWithIndex viewCodeSampleOption codeSampleList)
-        , span_ [] ["Print all steps ?"]
-        , select_
-            [ on "change" valueDecoder $
-              ChangeVerbose . toEnum . read . fromMisoString
+        [class_ "columns"]
+        [ div_
+            [class_ "column"]
+            [ textarea_
+                [ class_ "textarea is-medium is-info"
+                , rows_ "10"
+                , value_ (input m)
+                , onInput ChangeInput
+                ]
+                []
             ]
-            [ option_ [selected_ $ verbose $ opts m, value_ "1"] ["Yes"]
-            , option_ [selected_ $ not $ verbose $ opts m, value_ "0"] ["No"]
-            ]
-        , span_ [] ["Evaluation mode:"]
-        , select_
-            [ on "change" valueDecoder $
-              ChangeEvalStrategy . valueToEvaluationStrategy
-            ]
-            [ option_
-                [selected_ (strategy (opts m) == CallByValue), value_ "0"]
-                ["Call by value"]
-            , option_
-                [selected_ (strategy (opts m) == FullBeta), value_ "1"]
-                ["Full Beta reduction"]
+        , div_
+            [class_ "column"]
+            [ textarea_
+                [ class_ "textarea is-medium"
+                , rows_ "10"
+                , value_ $
+                  toMisoString $
+                  Data.List.intercalate "\n -> " $
+                  processInput (opts m) (fromMisoString $ input m)
+                , readonly_ True
+                ]
+                []
             ]
         ]
-    , p_ [style_ paragraphStyle] [text $ excerpt $ codeSample m]
-    , textarea_
-        [rows_ "10", cols_ "50", value_ (input m), onInput ChangeInput]
-        []
-    , div_
-        []
-        (map viewSingleStep (processInput (opts m) (fromMisoString $ input m)))
     ]
