@@ -172,6 +172,15 @@ viewCodeSampleOption cs ind =
 inputTextAreaColor :: MisoString
 inputTextAreaColor = "#F8F8FF"
 
+inputTextAreaRows :: MisoString
+inputTextAreaRows = "18"
+
+outputTextAreaRows :: MisoString
+outputTextAreaRows = "9"
+
+notesTextAreaRows :: MisoString
+notesTextAreaRows = "7"
+
 textAreaClassVal :: Maybe Bool -> MisoString
 textAreaClassVal isSuccess =
   case isSuccess of
@@ -187,10 +196,6 @@ viewModel m =
         [ rel_ "stylesheet"
         , href_ "https://cdn.jsdelivr.net/npm/bulma@0.8.0/css/bulma.min.css"
         ]
-    --, p_
-    --    [style_ paragraphStyle]
-    --    [ "This is a repl for the lambda calculus language. You can type any expression you like, and / or take a look at the code samples, which show how to build features that you would find in today's mainstream languages (eg Python, Javascript, Java, etc). This is a work in progress. I hope you'll find it useful."
-    --    ]
     , div_
         []
         [ div_
@@ -231,7 +236,7 @@ viewModel m =
             [ textarea_
                 [ style_ $ Map.singleton "background-color" inputTextAreaColor
                 , class_ $ textAreaClassVal (lastRunIsSuccesful m)
-                , rows_ "18"
+                , rows_ inputTextAreaRows
                 , value_ (input m)
                 , onInput ChangeInput
                 ]
@@ -241,14 +246,14 @@ viewModel m =
             [class_ "column"]
             [ textarea_
                 [ class_ $ textAreaClassVal Nothing
-                , rows_ "9"
+                , rows_ outputTextAreaRows
                 , value_ (output m)
                 , readonly_ True
                 ]
                 []
             , textarea_
                 [ class_ $ textAreaClassVal Nothing
-                , rows_ "7"
+                , rows_ notesTextAreaRows
                 , value_ (notes m)
                 , readonly_ True
                 ]
