@@ -4,11 +4,13 @@
 
 module Main where
 
+import Data.List
+
+import qualified Data.Map as Map
 import Lib.Lib
 import Untyped.Evaluator
 import Untyped.Parser
 
-import qualified Data.Map as Map
 import Miso
 import Miso.String hiding (map, null)
 -- | JSAddle import
@@ -31,6 +33,9 @@ data CodeSample = CodeSample
 data Model = Model
   { opts :: EvalOpts
   , input :: MisoString
+  , output :: MisoString
+  , notes :: MisoString
+  , lastRunIsSuccesful :: Maybe Bool
   , codeSample :: CodeSample
   } deriving (Eq)
 
@@ -39,6 +44,8 @@ data Action
   | ChangeVerbose Bool
   | ChangeEvalStrategy EvaluationStrategy
   | ChangeSample Int
+  | RunProgram
+  | DisplayAbout
   | NoOp
   deriving (Eq)
 #ifndef __GHCJS__
@@ -60,22 +67,22 @@ valueToEvaluationStrategy "1" = FullBeta
 valueToEvaluationStrategy v =
   error $ "unrecognized value for evaluation strategy :" ++ fromMisoString v
 
-processInput :: EvalOpts -> String -> [String]
+processInput :: EvalOpts -> String -> Either String [String]
 processInput opts input =
   let parseResult = fullParser input
    in case parseResult of
-        Left err -> [show err]
+        Left err -> Left $ show err
         Right p -> runProgram opts p
 
-runProgram :: EvalOpts -> Program -> [String]
+runProgram :: EvalOpts -> Program -> Either String [String]
 runProgram opts t =
   if verbose opts
     then case evalProgram (strategy opts) t of
-           Left err -> [show err]
-           Right ts -> map show ts
+           Left err -> Left $ show err
+           Right ts -> Right $ map show ts
     else case evalProgramFinalResult (strategy opts) t of
-           Left err -> [show err]
-           Right t' -> [show t']
+           Left err -> Left $ show err
+           Right t' -> Right [show t']
 
 main :: IO ()
 main = runApp $ startApp App {..}
@@ -85,6 +92,9 @@ main = runApp $ startApp App {..}
       Model
         { opts = defaultOpts
         , input = code $ Prelude.head codeSampleList
+        , output = ""
+        , notes = excerpt $ Prelude.head codeSampleList
+        , lastRunIsSuccesful = Nothing
         , codeSample = Prelude.head codeSampleList
         }
     update = updateModel -- update function
@@ -134,59 +144,120 @@ updateModel action m =
       noEff $ m {opts = EvalOpts (verbose (opts m)) strat}
     ChangeSample ind ->
       let cs = codeSampleList !! ind
-       in noEff $ m {input = code cs, codeSample = cs}
+       in noEff $ m {input = code cs, codeSample = cs, notes = excerpt cs}
+    RunProgram ->
+      let result = processInput (opts m) (fromMisoString $ input m)
+       in case result of
+            Left err ->
+              noEff $
+              m {output = toMisoString err, lastRunIsSuccesful = Just False}
+            Right ts ->
+              noEff $
+              m
+                { output = toMisoString $ Data.List.intercalate "\n -> " ts
+                , lastRunIsSuccesful = Just True
+                }
+    DisplayAbout ->
+      noEff $
+      m
+        { notes =
+            "Hi There! This is a repl for the lambda calculus language. You can type any expression you like, and / or take a look at the code samples. I hope you'll find it useful."
+        }
     NoOp -> noEff m
-
-paragraphStyle :: Map.Map MisoString MisoString
-paragraphStyle = Map.singleton "width" "50%"
-
-viewSingleStep :: String -> View Action
-viewSingleStep step = p_ [] [text $ toMisoString step]
 
 viewCodeSampleOption :: CodeSample -> Int -> View Action
 viewCodeSampleOption cs ind =
   option_ [value_ $ toMisoString $ show ind] [text $ title cs]
 
+inputTextAreaColor :: MisoString
+inputTextAreaColor = "#F8F8FF"
+
+inputTextAreaRows :: MisoString
+inputTextAreaRows = "18"
+
+outputTextAreaRows :: MisoString
+outputTextAreaRows = "9"
+
+notesTextAreaRows :: MisoString
+notesTextAreaRows = "7"
+
+textAreaClassVal :: Maybe Bool -> MisoString
+textAreaClassVal isSuccess =
+  case isSuccess of
+    Nothing -> "textarea is-medium"
+    (Just True) -> "textarea is-medium is-success"
+    (Just False) -> "textarea is-medium is-danger"
+
 viewModel :: Model -> View Action
 viewModel m =
   div_
     []
-    [ p_
-        [style_ paragraphStyle]
-        [ "This is a repl for the lambda calculus language. You can type any expression you like, and / or take a look at the code samples, which show how to build features that you would find in today's mainstream languages (eg Python, Javascript, Java, etc). This is a work in progress. I hope you'll find it useful."
+    [ link_
+        [ rel_ "stylesheet"
+        , href_ "https://cdn.jsdelivr.net/npm/bulma@0.8.0/css/bulma.min.css"
         ]
     , div_
         []
-        [ span_ [] ["Samples"]
-        , select_
-            [on "change" valueDecoder $ ChangeSample . read . fromMisoString]
-            (mapWithIndex viewCodeSampleOption codeSampleList)
-        , span_ [] ["Print all steps ?"]
-        , select_
-            [ on "change" valueDecoder $
-              ChangeVerbose . toEnum . read . fromMisoString
+        [ div_
+            [class_ "select is-primary"]
+            [ select_
+                [ on "change" valueDecoder $
+                  ChangeSample . read . fromMisoString
+                ]
+                (mapWithIndex viewCodeSampleOption codeSampleList)
             ]
-            [ option_ [selected_ $ verbose $ opts m, value_ "1"] ["Yes"]
-            , option_ [selected_ $ not $ verbose $ opts m, value_ "0"] ["No"]
+        , div_
+            [class_ "select is-primary"]
+            [ select_
+                [ on "change" valueDecoder $
+                  ChangeVerbose . toEnum . read . fromMisoString
+                ]
+                [ option_ [value_ "1"] ["Print all reductions steps"]
+                , option_ [value_ "0"] ["Print only the output"]
+                ]
             ]
-        , span_ [] ["Evaluation mode:"]
-        , select_
-            [ on "change" valueDecoder $
-              ChangeEvalStrategy . valueToEvaluationStrategy
+        , div_
+            [class_ "select is-primary"]
+            [ select_
+                [ on "change" valueDecoder $
+                  ChangeEvalStrategy . valueToEvaluationStrategy
+                ]
+                [ option_ [value_ "0"] ["Call by value"]
+                , option_ [value_ "1"] ["Full Beta reduction"]
+                ]
             ]
-            [ option_
-                [selected_ (strategy (opts m) == CallByValue), value_ "0"]
-                ["Call by value"]
-            , option_
-                [selected_ (strategy (opts m) == FullBeta), value_ "1"]
-                ["Full Beta reduction"]
+        , button_ [class_ "button is-primary", onClick RunProgram] ["Run!"]
+        , button_ [class_ "button", onClick DisplayAbout] ["About"]
+        ]
+    , div_
+        [class_ "columns"]
+        [ div_
+            [class_ "column is-two-thirds"]
+            [ textarea_
+                [ style_ $ Map.singleton "background-color" inputTextAreaColor
+                , class_ $ textAreaClassVal (lastRunIsSuccesful m)
+                , rows_ inputTextAreaRows
+                , value_ (input m)
+                , onInput ChangeInput
+                ]
+                []
+            ]
+        , div_
+            [class_ "column"]
+            [ textarea_
+                [ class_ $ textAreaClassVal Nothing
+                , rows_ outputTextAreaRows
+                , value_ (output m)
+                , readonly_ True
+                ]
+                []
+            , textarea_
+                [ class_ $ textAreaClassVal Nothing
+                , rows_ notesTextAreaRows
+                , value_ (notes m)
+                , readonly_ True
+                ]
+                []
             ]
         ]
-    , p_ [style_ paragraphStyle] [text $ excerpt $ codeSample m]
-    , textarea_
-        [rows_ "10", cols_ "50", value_ (input m), onInput ChangeInput]
-        []
-    , div_
-        []
-        (map viewSingleStep (processInput (opts m) (fromMisoString $ input m)))
     ]
