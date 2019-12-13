@@ -7,7 +7,10 @@ module Main where
 import Data.List
 
 import qualified Data.Map as Map
-import Lib.Lib
+
+import Data.Maybe (fromMaybe)
+
+--import Lib.Lib
 import Untyped.Evaluator
 import Untyped.Parser
 
@@ -30,6 +33,12 @@ data CodeSample = CodeSample
   , excerpt :: MisoString
   } deriving (Eq)
 
+data Level = Level
+  { lvlTitle :: MisoString
+  , initialCode :: MisoString
+  , lvlExcerpt :: MisoString
+  }
+
 data Model = Model
   { opts :: EvalOpts
   , input :: MisoString
@@ -37,6 +46,7 @@ data Model = Model
   , notes :: MisoString
   , lastRunIsSuccesful :: Maybe Bool
   , codeSample :: CodeSample
+  , levelInd :: Int
   } deriving (Eq)
 
 data Action
@@ -46,6 +56,7 @@ data Action
   | ChangeSample Int
   | RunProgram
   | DisplayAbout
+  | SubmitLevelAttempt
   | NoOp
   deriving (Eq)
 #ifndef __GHCJS__
@@ -91,11 +102,13 @@ main = runApp $ startApp App {..}
     model =
       Model
         { opts = defaultOpts
-        , input = code $ Prelude.head codeSampleList
+        --, input = code $ Prelude.head codeSampleList
+        , input = maybe "" initialCode $ Map.lookup 0 levels
         , output = ""
-        , notes = excerpt $ Prelude.head codeSampleList
+        , notes = maybe "" lvlExcerpt $ Map.lookup 0 levels
         , lastRunIsSuccesful = Nothing
         , codeSample = Prelude.head codeSampleList
+        , levelInd = 0
         }
     update = updateModel -- update function
     view = viewModel -- view function
@@ -134,6 +147,46 @@ codeSampleList =
       }
   ]
 
+levels :: Map.Map Int Level
+levels =
+  Map.fromList
+    [ ( 0
+      , Level
+          { lvlTitle = "the identity function"
+          , initialCode = "\\x.x"
+          , lvlExcerpt = "hello world"
+          })
+    , ( 1
+      , Level
+          { lvlTitle = "Church booleans"
+          , initialCode =
+              "true = \\t.\\f.t\nfalse = \\t.\\f.f\nnot = \\b.b false true\nnot true"
+          , lvlExcerpt = "hello booleans"
+          })
+    , ( 2
+      , Level
+          { lvlTitle = "Church booleans: AND"
+          , initialCode =
+              "true = \\t.\\f.t\nfalse = \\t.\\f.f\nand = \\a.\\b.a b a\nand true false"
+          , lvlExcerpt = "hello booleans 2"
+          })
+    , ( 3
+      , Level
+          { lvlTitle = "Church booleans: OR"
+          , initialCode =
+              "true = \\t.\\f.t\nfalse = \\t.\\f.f\nand = \\a.\\b.a b a\n"
+          , lvlExcerpt = "can you implement OR? Define a `or` function"
+          })
+    ]
+
+data Expectation = Expectation
+  { argument :: String
+  , expectedResult :: Term
+  }
+
+testSubmission :: Term -> [Expectation] -> Either String ()
+testSubmission = undefined
+
 -- FIXME: clunkyness with records
 updateModel :: Action -> Model -> Effect Action Model
 updateModel action m =
@@ -163,8 +216,26 @@ updateModel action m =
         { notes =
             "Hi There! This is a repl for the lambda calculus language. You can type any expression you like, and / or take a look at the code samples. I hope you'll find it useful."
         }
+    -- FIXME: refactor this
+    SubmitLevelAttempt ->
+      let nextLevelInd = levelInd m + 1
+          nextLevel = levels Map.!? nextLevelInd
+          nextInput = initialCode <$> nextLevel
+          nextNotes = lvlExcerpt <$> nextLevel
+          nextResult = processInput (opts m) <$> (fromMisoString <$> nextInput)
+       in noEff $
+          m
+            { levelInd = nextLevelInd
+            , input = fromMaybe (error "submit error") nextInput
+            , notes = fromMaybe (error "submit error") nextNotes
+            , output =
+                case fromMaybe (error "submit error") nextResult of
+                  Left err -> toMisoString err
+                  Right ts -> toMisoString $ Data.List.intercalate "\n -> " ts
+            }
     NoOp -> noEff m
 
+--            toMisoString <$> Data.List.intercalate "\n -> " <$>
 viewCodeSampleOption :: CodeSample -> Int -> View Action
 viewCodeSampleOption cs ind =
   option_ [value_ $ toMisoString $ show ind] [text $ title cs]
@@ -188,6 +259,11 @@ textAreaClassVal isSuccess =
     (Just True) -> "textarea is-medium is-success"
     (Just False) -> "textarea is-medium is-danger"
 
+submitButtonStyle :: Int -> Map.Map MisoString MisoString
+submitButtonStyle n
+  | n < Data.List.length (Map.keys levels) - 1 = Map.fromList []
+  | otherwise = Map.fromList [("display", "none")]
+
 viewModel :: Model -> View Action
 viewModel m =
   div_
@@ -198,15 +274,15 @@ viewModel m =
         ]
     , div_
         []
+          --div_
+            --[class_ "select is-primary"]
+            --[ select_
+            --    [ on "change" valueDecoder $
+            --      ChangeSample . read . fromMisoString
+            --    ]
+            --    (mapWithIndex viewCodeSampleOption codeSampleList)
+            --]
         [ div_
-            [class_ "select is-primary"]
-            [ select_
-                [ on "change" valueDecoder $
-                  ChangeSample . read . fromMisoString
-                ]
-                (mapWithIndex viewCodeSampleOption codeSampleList)
-            ]
-        , div_
             [class_ "select is-primary"]
             [ select_
                 [ on "change" valueDecoder $
@@ -216,18 +292,24 @@ viewModel m =
                 , option_ [value_ "0"] ["Print only the output"]
                 ]
             ]
-        , div_
-            [class_ "select is-primary"]
-            [ select_
-                [ on "change" valueDecoder $
-                  ChangeEvalStrategy . valueToEvaluationStrategy
-                ]
-                [ option_ [value_ "0"] ["Call by value"]
-                , option_ [value_ "1"] ["Full Beta reduction"]
-                ]
+        --, div_
+        --    [class_ "select is-primary"]
+        --    [ select_
+        --        [ on "change" valueDecoder $
+        --          ChangeEvalStrategy . valueToEvaluationStrategy
+        --        ]
+        --        [ option_ [value_ "0"] ["Call by value"]
+        --        , option_ [value_ "1"] ["Full Beta reduction"]
+        --        ]
+        --    ]
+        , button_
+            [ class_ "button is-primary"
+            , style_ (submitButtonStyle (levelInd m))
+            , onClick SubmitLevelAttempt
             ]
+            ["Submit"]
         , button_ [class_ "button is-primary", onClick RunProgram] ["Run!"]
-        , button_ [class_ "button", onClick DisplayAbout] ["About"]
+        --, button_ [class_ "button", onClick DisplayAbout] ["About"]
         ]
     , div_
         [class_ "columns"]
