@@ -4,18 +4,18 @@
 
 module Main where
 
+import Data.Either
 import Data.List
 
 import qualified Data.Map as Map
 
-import Data.Maybe (fromMaybe)
-
 --import Lib.Lib
+import Expectation
 import Untyped.Evaluator
 import Untyped.Parser
 
 import Miso
-import Miso.String hiding (map, null)
+import Miso.String hiding (map, null, zip)
 -- | JSAddle import
 #ifndef __GHCJS__
 import Language.Javascript.JSaddle.Warp as JSaddle
@@ -37,6 +37,7 @@ data Level = Level
   { lvlTitle :: MisoString
   , initialCode :: MisoString
   , lvlExcerpt :: MisoString
+  , expectations :: [Expectation]
   }
 
 data Model = Model
@@ -155,6 +156,11 @@ levels =
           { lvlTitle = "the identity function"
           , initialCode = "\\x.x"
           , lvlExcerpt = "hello world"
+          , expectations =
+              rights
+                [ buildExpectation "\\t.\\f.t" "\\t.\\f.f"
+                , buildExpectation "\\t.\\f.f" "\\t.\\f.t"
+                ]
           })
     , ( 1
       , Level
@@ -162,6 +168,7 @@ levels =
           , initialCode =
               "true = \\t.\\f.t\nfalse = \\t.\\f.f\nnot = \\b.b false true\nnot true"
           , lvlExcerpt = "hello booleans"
+          , expectations = []
           })
     , ( 2
       , Level
@@ -169,6 +176,7 @@ levels =
           , initialCode =
               "true = \\t.\\f.t\nfalse = \\t.\\f.f\nand = \\a.\\b.a b a\nand true false"
           , lvlExcerpt = "hello booleans 2"
+          , expectations = []
           })
     , ( 3
       , Level
@@ -176,16 +184,9 @@ levels =
           , initialCode =
               "true = \\t.\\f.t\nfalse = \\t.\\f.f\nand = \\a.\\b.a b a\n"
           , lvlExcerpt = "can you implement OR? Define a `or` function"
+          , expectations = []
           })
     ]
-
-data Expectation = Expectation
-  { argument :: String
-  , expectedResult :: Term
-  }
-
-testSubmission :: Term -> [Expectation] -> Either String ()
-testSubmission = undefined
 
 -- FIXME: clunkyness with records
 updateModel :: Action -> Model -> Effect Action Model
@@ -218,21 +219,28 @@ updateModel action m =
         }
     -- FIXME: refactor this
     SubmitLevelAttempt ->
-      let nextLevelInd = levelInd m + 1
-          nextLevel = levels Map.!? nextLevelInd
-          nextInput = initialCode <$> nextLevel
-          nextNotes = lvlExcerpt <$> nextLevel
-          nextResult = processInput (opts m) <$> (fromMisoString <$> nextInput)
-       in noEff $
-          m
-            { levelInd = nextLevelInd
-            , input = fromMaybe (error "submit error") nextInput
-            , notes = fromMaybe (error "submit error") nextNotes
-            , output =
-                case fromMaybe (error "submit error") nextResult of
-                  Left err -> toMisoString err
-                  Right ts -> toMisoString $ Data.List.intercalate "\n -> " ts
-            }
+      case ( levels Map.!? levelInd m
+           , singleTermParser (fromMisoString (input m))) of
+        (Just lvl, Right t) ->
+          case testSubmission t (expectations lvl) of
+            Left err -> noEff $ m {output = toMisoString err}
+            Right _ -> noEff $ m {output = "Good answer!"}
+        _ -> undefined
+    --  let nextLevelInd = levelInd m + 1
+    --      nextLevel = levels Map.!? nextLevelInd
+    --      nextInput = initialCode <$> nextLevel
+    --      nextNotes = lvlExcerpt <$> nextLevel
+    --      nextResult = processInput (opts m) <$> (fromMisoString <$> nextInput)
+    --   in noEff $
+    --      m
+    --        { levelInd = nextLevelInd
+    --        , input = fromMaybe (error "submit error") nextInput
+    --        , notes = fromMaybe (error "submit error") nextNotes
+    --        , output =
+    --            case fromMaybe (error "submit error") nextResult of
+    --              Left err -> toMisoString err
+    --              Right ts -> toMisoString $ Data.List.intercalate "\n -> " ts
+    --        }
     NoOp -> noEff m
 
 --            toMisoString <$> Data.List.intercalate "\n -> " <$>
