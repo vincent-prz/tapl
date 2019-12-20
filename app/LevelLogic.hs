@@ -73,8 +73,17 @@ buildExpectation arg expected =
 isSuccessful :: ExpectationResult -> Bool
 isSuccessful er = expectedResult (expectation er) == actual er
 
+checkSubmissionIsValid :: Program -> Either String ()
+checkSubmissionIsValid (Program []) = Left "Error: empty submission"
+checkSubmissionIsValid (Program [Assign _ _]) =
+  Left "Error: submission must end with an expression"
+checkSubmissionIsValid (Program [Run _]) = Right ()
+checkSubmissionIsValid (Program (_:stmts)) =
+  checkSubmissionIsValid (Program stmts)
+
 testSubmission :: Program -> [Expectation] -> Either String ()
-testSubmission p es =
+testSubmission p es = do
+  checkSubmissionIsValid p
   let (runtimeErrs, others) = partitionEithers $ map (testExpectation p) es
    in if not (null runtimeErrs)
         then Left $ show $ head runtimeErrs
