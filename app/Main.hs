@@ -4,18 +4,16 @@
 
 module Main where
 
-import Data.Either
 import Data.List
 
-import qualified Data.Map as Map
-
---import Lib.Lib
-import Expectation
+-- FIXME: error handling (see usages of `maybe`)
+import LevelLogic
 import Untyped.Evaluator
 import Untyped.Parser
 
+import qualified Data.Map as Map
 import Miso
-import Miso.String hiding (map, null, zip)
+import Miso.String hiding (map, zip)
 -- | JSAddle import
 #ifndef __GHCJS__
 import Language.Javascript.JSaddle.Warp as JSaddle
@@ -33,21 +31,15 @@ data CodeSample = CodeSample
   , excerpt :: MisoString
   } deriving (Eq)
 
-data Level = Level
-  { lvlTitle :: MisoString
-  , initialCode :: MisoString
-  , lvlExcerpt :: MisoString
-  , expectations :: [Expectation]
-  }
-
 data Model = Model
   { opts :: EvalOpts
   , input :: MisoString
   , output :: MisoString
   , notes :: MisoString
-  , lastRunIsSuccesful :: Maybe Bool
+  , lastRunIsSuccessful :: Maybe Bool
   , codeSample :: CodeSample
   , levelInd :: Int
+  , isLevelSuccessful :: Bool
   } deriving (Eq)
 
 data Action
@@ -57,7 +49,9 @@ data Action
   | ChangeSample Int
   | RunProgram
   | DisplayAbout
+  | StartGame
   | SubmitLevelAttempt
+  | GoToNextLevel
   | NoOp
   deriving (Eq)
 #ifndef __GHCJS__
@@ -104,12 +98,13 @@ main = runApp $ startApp App {..}
       Model
         { opts = defaultOpts
         --, input = code $ Prelude.head codeSampleList
-        , input = maybe "" initialCode $ Map.lookup 0 levels
+        , input = ""
         , output = ""
-        , notes = maybe "" lvlExcerpt $ Map.lookup 0 levels
-        , lastRunIsSuccesful = Nothing
+        , notes = ""
+        , lastRunIsSuccessful = Nothing
         , codeSample = Prelude.head codeSampleList
-        , levelInd = 0
+        , levelInd = -1
+        , isLevelSuccessful = False
         }
     update = updateModel -- update function
     view = viewModel -- view function
@@ -148,47 +143,26 @@ codeSampleList =
       }
   ]
 
-levels :: Map.Map Int Level
-levels =
-  Map.fromList
-    [ ( 0
-      , Level
-          { lvlTitle = "the identity function"
-          , initialCode = "\\x.x"
-          , lvlExcerpt = "hello world"
-          , expectations =
-              rights
-                [ buildExpectation "\\t.\\f.t" "\\t.\\f.f"
-                , buildExpectation "\\t.\\f.f" "\\t.\\f.t"
-                ]
-          })
-    , ( 1
-      , Level
-          { lvlTitle = "Church booleans"
-          , initialCode =
-              "true = \\t.\\f.t\nfalse = \\t.\\f.f\nnot = \\b.b false true\nnot true"
-          , lvlExcerpt = "hello booleans"
-          , expectations = []
-          })
-    , ( 2
-      , Level
-          { lvlTitle = "Church booleans: AND"
-          , initialCode =
-              "true = \\t.\\f.t\nfalse = \\t.\\f.f\nand = \\a.\\b.a b a\nand true false"
-          , lvlExcerpt = "hello booleans 2"
-          , expectations = []
-          })
-    , ( 3
-      , Level
-          { lvlTitle = "Church booleans: OR"
-          , initialCode =
-              "true = \\t.\\f.t\nfalse = \\t.\\f.f\nand = \\a.\\b.a b a\n"
-          , lvlExcerpt = "can you implement OR? Define a `or` function"
-          , expectations = []
-          })
-    ]
+isGameOn :: Model -> Bool
+isGameOn m = levelInd m >= 0
 
--- FIXME: clunkyness with records
+goToNextLevel :: Model -> Model
+goToNextLevel m =
+  let nextLevelInd = levelInd m + 1
+      nextLevel = levels Map.!? nextLevelInd
+   in m
+        { levelInd = nextLevelInd
+        , isLevelSuccessful = False
+        , input = maybe "" initialCode nextLevel
+        , output = ""
+        , notes =
+            maybe
+              ""
+              ((("level " <> toMisoString (show nextLevelInd) <> ": ") <>) .
+               lvlExcerpt)
+              nextLevel
+        }
+
 updateModel :: Action -> Model -> Effect Action Model
 updateModel action m =
   case action of
@@ -204,12 +178,12 @@ updateModel action m =
        in case result of
             Left err ->
               noEff $
-              m {output = toMisoString err, lastRunIsSuccesful = Just False}
+              m {output = toMisoString err, lastRunIsSuccessful = Just False}
             Right ts ->
               noEff $
               m
                 { output = toMisoString $ Data.List.intercalate "\n -> " ts
-                , lastRunIsSuccesful = Just True
+                , lastRunIsSuccessful = Just True
                 }
     DisplayAbout ->
       noEff $
@@ -217,30 +191,15 @@ updateModel action m =
         { notes =
             "Hi There! This is a repl for the lambda calculus language. You can type any expression you like, and / or take a look at the code samples. I hope you'll find it useful."
         }
-    -- FIXME: refactor this
+    StartGame -> noEff $ goToNextLevel m
     SubmitLevelAttempt ->
-      case ( levels Map.!? levelInd m
-           , singleTermParser (fromMisoString (input m))) of
-        (Just lvl, Right t) ->
-          case testSubmission t (expectations lvl) of
+      case (levels Map.!? levelInd m, fullParser (fromMisoString (input m))) of
+        (Just lvl, Right p) ->
+          case testSubmission p (expectations lvl) of
             Left err -> noEff $ m {output = toMisoString err}
-            Right _ -> noEff $ m {output = "Good answer!"}
-        _ -> undefined
-    --  let nextLevelInd = levelInd m + 1
-    --      nextLevel = levels Map.!? nextLevelInd
-    --      nextInput = initialCode <$> nextLevel
-    --      nextNotes = lvlExcerpt <$> nextLevel
-    --      nextResult = processInput (opts m) <$> (fromMisoString <$> nextInput)
-    --   in noEff $
-    --      m
-    --        { levelInd = nextLevelInd
-    --        , input = fromMaybe (error "submit error") nextInput
-    --        , notes = fromMaybe (error "submit error") nextNotes
-    --        , output =
-    --            case fromMaybe (error "submit error") nextResult of
-    --              Left err -> toMisoString err
-    --              Right ts -> toMisoString $ Data.List.intercalate "\n -> " ts
-    --        }
+            Right _ -> noEff $ m {isLevelSuccessful = True}
+        _ -> noEff $ m {output = "oops, something wrong happened"}
+    GoToNextLevel -> noEff $ goToNextLevel m
     NoOp -> noEff m
 
 --            toMisoString <$> Data.List.intercalate "\n -> " <$>
@@ -272,6 +231,26 @@ submitButtonStyle n
   | n < Data.List.length (Map.keys levels) - 1 = Map.fromList []
   | otherwise = Map.fromList [("display", "none")]
 
+viewLevelSuccessModal :: View Action
+viewLevelSuccessModal =
+  div_
+    [class_ "is-active modal"]
+    [ div_ [class_ "modal-background"] []
+    , div_
+        [class_ "modal-card"]
+        [ header_
+            [class_ "modal-card-head"]
+            [p_ [class_ "modal-card-title"] ["Good answer!"]]
+        , section_ [class_ "modal-card-body"] ["Congrats!"]
+        , footer_
+            [class_ "modal-card-foot"]
+            [ button_
+                [class_ "button is-success", onClick GoToNextLevel]
+                ["next"]
+            ]
+        ]
+    ]
+
 viewModel :: Model -> View Action
 viewModel m =
   div_
@@ -290,7 +269,10 @@ viewModel m =
             --    ]
             --    (mapWithIndex viewCodeSampleOption codeSampleList)
             --]
-        [ div_
+        [ if isLevelSuccessful m
+            then viewLevelSuccessModal
+            else div_ [] []
+        , div_
             [class_ "select is-primary"]
             [ select_
                 [ on "change" valueDecoder $
@@ -310,12 +292,16 @@ viewModel m =
         --        , option_ [value_ "1"] ["Full Beta reduction"]
         --        ]
         --    ]
-        , button_
-            [ class_ "button is-primary"
-            , style_ (submitButtonStyle (levelInd m))
-            , onClick SubmitLevelAttempt
-            ]
-            ["Submit"]
+        , if isGameOn m
+            then button_
+                   [ class_ "button is-primary"
+                   , style_ (submitButtonStyle (levelInd m))
+                   , onClick SubmitLevelAttempt
+                   ]
+                   ["Submit"]
+            else button_
+                   [class_ "button is-primary", onClick StartGame]
+                   ["Start Game"]
         , button_ [class_ "button is-primary", onClick RunProgram] ["Run!"]
         --, button_ [class_ "button", onClick DisplayAbout] ["About"]
         ]
@@ -325,7 +311,7 @@ viewModel m =
             [class_ "column is-two-thirds"]
             [ textarea_
                 [ style_ $ Map.singleton "background-color" inputTextAreaColor
-                , class_ $ textAreaClassVal (lastRunIsSuccesful m)
+                , class_ $ textAreaClassVal (lastRunIsSuccessful m)
                 , rows_ inputTextAreaRows
                 , value_ (input m)
                 , onInput ChangeInput
