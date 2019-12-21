@@ -161,6 +161,7 @@ goToNextLevel m =
               ((("level " <> toMisoString (show nextLevelInd) <> ": ") <>) .
                lvlExcerpt)
               nextLevel
+        , lastRunIsSuccessful = Nothing
         }
 
 updateModel :: Action -> Model -> Effect Action Model
@@ -193,12 +194,15 @@ updateModel action m =
         }
     StartGame -> noEff $ goToNextLevel m
     SubmitLevelAttempt ->
-      case (levels Map.!? levelInd m, fullParser (fromMisoString (input m))) of
-        (Just lvl, Right p) ->
-          case testSubmission p (expectations lvl) of
-            Left err -> noEff $ m {output = toMisoString err}
-            Right _ -> noEff $ m {isLevelSuccessful = True}
-        _ -> noEff $ m {output = "oops, something wrong happened"}
+      case levels Map.!? levelInd m of
+        Nothing -> error $ "Error: could not get level " ++ show (levelInd m)
+        Just lvl ->
+          case fullParser (fromMisoString (input m)) of
+            Left err -> noEff $ m {output = toMisoString $ show err}
+            Right p ->
+              case testSubmission p (expectations lvl) of
+                Left err -> noEff $ m {output = toMisoString err}
+                Right _ -> noEff $ m {isLevelSuccessful = True}
     GoToNextLevel -> noEff $ goToNextLevel m
     NoOp -> noEff m
 
