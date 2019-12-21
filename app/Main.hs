@@ -197,12 +197,9 @@ updateModel action m =
       case levels Map.!? levelInd m of
         Nothing -> error $ "Error: could not get level " ++ show (levelInd m)
         Just lvl ->
-          case fullParser (fromMisoString (input m)) of
-            Left err -> noEff $ m {output = toMisoString $ show err}
-            Right p ->
-              case testSubmission p (expectations lvl) of
-                Left err -> noEff $ m {output = toMisoString err}
-                Right _ -> noEff $ m {isLevelSuccessful = True}
+          case processSubmission lvl (fromMisoString (input m)) of
+            Left err -> noEff $ m {output = toMisoString err}
+            Right _ -> noEff $ m {isLevelSuccessful = True}
     GoToNextLevel -> noEff $ goToNextLevel m
     NoOp -> noEff m
 

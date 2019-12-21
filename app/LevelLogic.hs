@@ -73,18 +73,19 @@ buildExpectation arg expected =
 isSuccessful :: ExpectationResult -> Bool
 isSuccessful er = expectedResult (expectation er) == actual er
 
-checkSubmissionIsValid :: Program -> Either String ()
-checkSubmissionIsValid (Program []) = Left "Error: empty submission"
-checkSubmissionIsValid (Program [Assign _ _]) =
-  Left "Error: submission must end with an expression"
-checkSubmissionIsValid (Program [Run _]) = Right ()
-checkSubmissionIsValid (Program (_:stmts)) =
-  checkSubmissionIsValid (Program stmts)
+processSubmission :: Level -> String -> Either String ()
+processSubmission lvl input =
+  case fullParser input of
+    Left err -> Left $ show err
+    Right p ->
+      case evalProgramFinalResult FullBeta p of
+        Left err -> Left $ show err
+        Right T_UNIT -> Left "Error: submission must end with expression"
+        Right t -> testSubmission t (expectations lvl)
 
-testSubmission :: Program -> [Expectation] -> Either String ()
-testSubmission p es = do
-  checkSubmissionIsValid p
-  let (runtimeErrs, others) = partitionEithers $ map (testExpectation p) es
+testSubmission :: Term -> [Expectation] -> Either String ()
+testSubmission t es =
+  let (runtimeErrs, others) = partitionEithers $ map (testExpectation t) es
    in if not (null runtimeErrs)
         then Left $ show $ head runtimeErrs
         else aux others
@@ -102,10 +103,8 @@ testSubmission p es = do
         got = show $ actual er
         arg = show (argument $ expectation er)
 
-testExpectation ::
-     Program -> Expectation -> Either RuntimeError ExpectationResult
-testExpectation p e = do
-  submittedTerm <- evalProgramFinalResult FullBeta p
-  let application = Program [Run (T_APP submittedTerm (argument e))]
+testExpectation :: Term -> Expectation -> Either RuntimeError ExpectationResult
+testExpectation t e = do
+  let application = Program [Run (T_APP t (argument e))]
   actualVal <- evalProgramFinalResult FullBeta application
   return $ ExpectationResult {expectation = e, actual = actualVal}
