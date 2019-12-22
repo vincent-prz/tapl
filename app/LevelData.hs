@@ -120,7 +120,7 @@ levels =
           , initialCode =
               "true = \\t.\\f.t\nfalse = \\t.\\f.f\nnot = \\b.b false true\nand = \\a.\\b.a b a\n"
           , lvlExcerpt =
-              "can you implement OR? Note: you can define `or` in terms of `and` and `not`\
+              "can you implement OR? Note: you can define it in terms of `and` and `not`\
               \ using De Morgan's law, but you can also implement it from scratch."
           , expectations =
               rights
@@ -146,16 +146,57 @@ levels =
           })
     , ( 10
       , Level
-          { lvlTitle = "Church booleans: XOR"
+          { lvlTitle = "Church numerals"
           , initialCode =
-              "true = \\t.\\f.t\nfalse = \\t.\\f.f\nnot = \b.b false true\nand = \\a.\\b.a b a\n"
-          , lvlExcerpt = "can you implement XOR?"
+              "0 = \\s.\\z.z\n1 = \\s.\\z.s z\n2 = \\s.\\z.s (s z)\nsucc = \\n.\\s.\\z.s (n s z)\nsucc 1"
+          , lvlExcerpt =
+              "Here is an encoding of numbers. The idea is: a number `n` \
+               \is a function which applies `n` times its first argument `s`\
+               \to its second argument `z`. We have defined a `succ` function, which \
+               \computes the successor of a number."
+          , expectations = []
+          })
+    , ( 11
+      , Level
+          { lvlTitle = "Church numerals: addition"
+          , initialCode =
+              "0 = \\s.\\z.z\n1 = \\s.\\z.s z\n2 = \\s.\\z.s (s z)\nsucc = \\n.\\s.\\z.s (n s z)\n"
+          , lvlExcerpt =
+              "Define a function which takes 2 numbers and returns their addition. Hint: use the\
+              \ interpretation which sees a number `n` as a function of 2 arguments which applies the \
+              \first argument `n` times to the second. You can use the `succ` function."
           , expectations =
               rights
-                [ buildExpectation ["\\t.\\f.t", "\\t.\\f.t"] "\\t.\\f.f"
-                , buildExpectation ["\\t.\\f.t", "\\t.\\f.f"] "\\t.\\f.t"
-                , buildExpectation ["\\t.\\f.f", "\\t.\\f.t"] "\\t.\\f.t"
-                , buildExpectation ["\\t.\\f.f", "\\t.\\f.f"] "\\t.\\f.f"
+                [ buildExpectation
+                    ["\\s.\\z.s z", "\\s.\\z.s z"]
+                    "\\s.\\z.s (s z)"
+                , buildExpectation ["\\s.\\z.z", "\\s.\\z.z"] "\\s.\\z.z"
+                , buildExpectation
+                    ["\\s.\\z.s z", "\\s.\\z.s (s z)"]
+                    "\\s.\\z.s (s (s z))"
                 ]
+          })
+    , ( 12
+      , Level
+          { lvlTitle = "Church numerals: multiplication"
+          , initialCode =
+              "0 = \\s.\\z.z\n1 = \\s.\\z.s z\n2 = \\s.\\z.s (s z)\nsucc = \\n.\\s.\\z.s (n s z)\n"
+          , lvlExcerpt =
+              "Define a function which takes 2 numbers and returns their multiplication."
+          , expectations =
+              rights
+                [ buildExpectation ["\\s.\\z.s z", "\\s.\\z.s z"] "\\s.\\z.s z"
+                , buildExpectation ["\\s.\\z.z", "\\s.\\z.s z"] "\\s.\\z.z"
+                , buildExpectation
+                    ["\\s.\\z.s z", "\\s.\\z.s (s z)"]
+                    "\\s.\\z.s (s z)"
+                ]
+          })
+    , ( 13
+      , Level
+          { lvlTitle = "End of game"
+          , initialCode = ""
+          , lvlExcerpt = "The End."
+          , expectations = []
           })
     ]

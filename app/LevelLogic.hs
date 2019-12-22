@@ -64,9 +64,7 @@ testSubmission t es =
         args = show (arguments $ expectation er)
 
 testExpectation :: Term -> Expectation -> Either RuntimeError ExpectationResult
-testExpectation t e
-  --let application = Program [Run (T_APP t (arguments e))]
- = do
+testExpectation t e = do
   let application = Program [Run (foldl T_APP t (arguments e))]
   actualVal <- evalProgramFinalResult FullBeta application
   return $ ExpectationResult {expectation = e, actual = actualVal}

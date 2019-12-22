@@ -36,7 +36,6 @@ data Model = Model
   , input :: MisoString
   , output :: MisoString
   , notes :: MisoString
-  , lastRunIsSuccessful :: Maybe Bool
   , codeSample :: CodeSample
   , levelInd :: Int
   , isLevelSuccessful :: Bool
@@ -101,7 +100,6 @@ main = runApp $ startApp App {..}
         , input = ""
         , output = ""
         , notes = ""
-        , lastRunIsSuccessful = Nothing
         , codeSample = Prelude.head codeSampleList
         , levelInd = -1
         , isLevelSuccessful = False
@@ -170,7 +168,6 @@ goToNextLevel m =
                 lvlTitle lvl <>
                 "\n\n" <>
                 lvlExcerpt lvl
-        , lastRunIsSuccessful = Nothing
         }
 
 updateModel :: Action -> Model -> Effect Action Model
@@ -186,15 +183,10 @@ updateModel action m =
     RunProgram ->
       let result = processInput (opts m) (fromMisoString $ input m)
        in case result of
-            Left err ->
-              noEff $
-              m {output = toMisoString err, lastRunIsSuccessful = Just False}
+            Left err -> noEff $ m {output = toMisoString err}
             Right ts ->
               noEff $
-              m
-                { output = toMisoString $ Data.List.intercalate "\n -> " ts
-                , lastRunIsSuccessful = Just True
-                }
+              m {output = toMisoString $ Data.List.intercalate "\n -> " ts}
     DisplayAbout ->
       noEff $
       m
@@ -229,12 +221,8 @@ outputTextAreaRows = "9"
 notesTextAreaRows :: MisoString
 notesTextAreaRows = "7"
 
-textAreaClassVal :: Maybe Bool -> MisoString
-textAreaClassVal isSuccess =
-  case isSuccess of
-    Nothing -> "textarea is-medium"
-    (Just True) -> "textarea is-medium is-success"
-    (Just False) -> "textarea is-medium is-danger"
+textAreaClassVal :: MisoString
+textAreaClassVal = "textarea is-medium"
 
 submitButtonStyle :: Int -> Map.Map MisoString MisoString
 submitButtonStyle n
@@ -328,7 +316,7 @@ viewModel m =
             [class_ "column is-two-thirds"]
             [ textarea_
                 [ style_ $ Map.singleton "background-color" inputTextAreaColor
-                , class_ $ textAreaClassVal (lastRunIsSuccessful m)
+                , class_ textAreaClassVal
                 , rows_ inputTextAreaRows
                 , value_ (input m)
                 , onInput ChangeInput
@@ -338,14 +326,14 @@ viewModel m =
         , div_
             [class_ "column"]
             [ textarea_
-                [ class_ $ textAreaClassVal Nothing
+                [ class_ textAreaClassVal
                 , rows_ outputTextAreaRows
                 , value_ (output m)
                 , readonly_ True
                 ]
                 []
             , textarea_
-                [ class_ $ textAreaClassVal Nothing
+                [ class_ textAreaClassVal
                 , rows_ notesTextAreaRows
                 , value_ (notes m)
                 , readonly_ True
