@@ -13,7 +13,7 @@ import Untyped.Parser
 
 import qualified Data.Map as Map
 import Miso
-import Miso.String hiding (map, zip)
+import Miso.String hiding (map, null, zip)
 -- | JSAddle import
 #ifndef __GHCJS__
 import Language.Javascript.JSaddle.Warp as JSaddle
@@ -146,6 +146,12 @@ codeSampleList =
 isGameOn :: Model -> Bool
 isGameOn m = levelInd m >= 0
 
+lvlExpectsSubmission :: Int -> Bool
+lvlExpectsSubmission ind =
+  case levels Map.!? ind of
+    Nothing -> error $ "Error: could not get level " ++ show ind
+    Just lvl -> not (null (expectations lvl))
+
 goToNextLevel :: Model -> Model
 goToNextLevel m =
   let nextLevelInd = levelInd m + 1
@@ -156,11 +162,14 @@ goToNextLevel m =
         , input = maybe "" initialCode nextLevel
         , output = ""
         , notes =
-            maybe
-              ""
-              ((("level " <> toMisoString (show nextLevelInd) <> ": ") <>) .
-               lvlExcerpt)
-              nextLevel
+            case nextLevel of
+              Nothing ->
+                error $ "Error: could not get level " ++ show (levelInd m)
+              Just lvl ->
+                "Level " <> toMisoString (show nextLevelInd) <> ": " <>
+                lvlTitle lvl <>
+                "\n\n" <>
+                lvlExcerpt lvl
         , lastRunIsSuccessful = Nothing
         }
 
@@ -294,12 +303,19 @@ viewModel m =
         --        ]
         --    ]
         , if isGameOn m
-            then button_
-                   [ class_ "button is-primary"
-                   , style_ (submitButtonStyle (levelInd m))
-                   , onClick SubmitLevelAttempt
-                   ]
-                   ["Submit"]
+            then if lvlExpectsSubmission (levelInd m)
+                   then button_
+                          [ class_ "button is-primary"
+                          , style_ (submitButtonStyle (levelInd m))
+                          , onClick SubmitLevelAttempt
+                          ]
+                          ["Submit"]
+                   else button_
+                          [ class_ "button is-primary"
+                          , style_ (submitButtonStyle (levelInd m))
+                          , onClick GoToNextLevel
+                          ]
+                          ["Next"]
             else button_
                    [class_ "button is-primary", onClick StartGame]
                    ["Start Game"]
