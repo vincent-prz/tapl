@@ -6,7 +6,7 @@ module Main where
 
 import Data.List
 
--- FIXME: error handling (see usages of `maybe`)
+import LevelData
 import LevelLogic
 import Untyped.Evaluator
 import Untyped.Parser
