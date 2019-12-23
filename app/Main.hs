@@ -13,7 +13,7 @@ import Untyped.Parser
 
 import qualified Data.Map as Map
 import Miso
-import Miso.String hiding (map, null, zip)
+import Miso.String hiding (length, map, null, zip)
 -- | JSAddle import
 #ifndef __GHCJS__
 import Language.Javascript.JSaddle.Warp as JSaddle
@@ -38,6 +38,8 @@ data Model = Model
   , notes :: MisoString
   , codeSample :: CodeSample
   , levelInd :: Int
+  , isGameStarting :: Bool
+  , isGameOver :: Bool
   , isLevelSuccessful :: Bool
   } deriving (Eq)
 
@@ -49,6 +51,8 @@ data Action
   | RunProgram
   | DisplayAbout
   | StartGame
+  | ReallyStartGame
+  | EndGame
   | SubmitLevelAttempt
   | GoToNextLevel
   | NoOp
@@ -102,13 +106,15 @@ main = runApp $ startApp App {..}
         , notes = ""
         , codeSample = Prelude.head codeSampleList
         , levelInd = -1
+        , isGameStarting = False
+        , isGameOver = False
         , isLevelSuccessful = False
         }
-    update = updateModel -- update function
-    view = viewModel -- view function
-    events = defaultEvents -- default delegated events
-    subs = [] -- empty subscription list
-    mountPoint = Nothing -- mount point for application (Nothing defaults to 'body')
+    update = updateModel
+    view = viewModel
+    events = defaultEvents
+    subs = []
+    mountPoint = Nothing
 
 codeSampleList :: [CodeSample]
 codeSampleList =
@@ -154,21 +160,24 @@ goToNextLevel :: Model -> Model
 goToNextLevel m =
   let nextLevelInd = levelInd m + 1
       nextLevel = levels Map.!? nextLevelInd
-   in m
-        { levelInd = nextLevelInd
-        , isLevelSuccessful = False
-        , input = maybe "" initialCode nextLevel
-        , output = ""
-        , notes =
-            case nextLevel of
-              Nothing ->
-                error $ "Error: could not get level " ++ show (levelInd m)
-              Just lvl ->
-                "Level " <> toMisoString (show nextLevelInd) <> ": " <>
-                lvlTitle lvl <>
-                "\n\n" <>
-                lvlExcerpt lvl
-        }
+   in if nextLevelInd > length (Map.keys levels) - 1
+        then m {isLevelSuccessful = False, isGameOver = True}
+        else m
+               { levelInd = nextLevelInd
+               , isLevelSuccessful = False
+               , input = maybe "" initialCode nextLevel
+               , output = ""
+               , notes =
+                   case nextLevel of
+                     Nothing ->
+                       error $
+                       "Error: could not get level " ++ show (levelInd m)
+                     Just lvl ->
+                       "Level " <> toMisoString (show nextLevelInd) <> ": " <>
+                       lvlTitle lvl <>
+                       "\n\n" <>
+                       lvlExcerpt lvl
+               }
 
 updateModel :: Action -> Model -> Effect Action Model
 updateModel action m =
@@ -193,7 +202,8 @@ updateModel action m =
         { notes =
             "Hi There! This is a repl for the lambda calculus language. You can type any expression you like, and / or take a look at the code samples. I hope you'll find it useful."
         }
-    StartGame -> noEff $ goToNextLevel m
+    StartGame -> noEff $ m {isGameStarting = True}
+    ReallyStartGame -> noEff $ goToNextLevel m {isGameStarting = False}
     SubmitLevelAttempt ->
       case levels Map.!? levelInd m of
         Nothing -> error $ "Error: could not get level " ++ show (levelInd m)
@@ -202,6 +212,9 @@ updateModel action m =
             Left err -> noEff $ m {output = toMisoString err}
             Right _ -> noEff $ m {isLevelSuccessful = True}
     GoToNextLevel -> noEff $ goToNextLevel m
+    EndGame ->
+      noEff $
+      m {levelInd = -1, isGameOver = False, input = "", output = "", notes = ""}
     NoOp -> noEff m
 
 --            toMisoString <$> Data.List.intercalate "\n -> " <$>
@@ -224,10 +237,43 @@ notesTextAreaRows = "7"
 textAreaClassVal :: MisoString
 textAreaClassVal = "textarea is-medium"
 
-submitButtonStyle :: Int -> Map.Map MisoString MisoString
-submitButtonStyle n
-  | n < Data.List.length (Map.keys levels) - 1 = Map.fromList []
-  | otherwise = Map.fromList [("display", "none")]
+viewGameIntroModal :: View Action
+viewGameIntroModal =
+  div_
+    [class_ "is-active modal"]
+    [ div_ [class_ "modal-background"] []
+    , div_
+        [class_ "modal-card"]
+        [ header_
+            [class_ "modal-card-head"]
+            [p_ [class_ "modal-card-title"] ["Welcome!"]]
+        , section_ [class_ "modal-card-body"] [text introText1]
+        , section_ [class_ "modal-card-body"] [text introText2]
+        , footer_
+            [class_ "modal-card-foot"]
+            [ button_
+                [class_ "button is-success", onClick ReallyStartGame]
+                ["Ok"]
+            ]
+        ]
+    ]
+
+viewGameOverModal :: View Action
+viewGameOverModal =
+  div_
+    [class_ "is-active modal"]
+    [ div_ [class_ "modal-background"] []
+    , div_
+        [class_ "modal-card"]
+        [ header_
+            [class_ "modal-card-head"]
+            [p_ [class_ "modal-card-title"] ["Congratulations!"]]
+        , section_ [class_ "modal-card-body"] [text gameOverText]
+        , footer_
+            [class_ "modal-card-foot"]
+            [button_ [class_ "button is-success", onClick EndGame] ["Ok"]]
+        ]
+    ]
 
 viewLevelSuccessModal :: View Action
 viewLevelSuccessModal =
@@ -249,6 +295,13 @@ viewLevelSuccessModal =
         ]
     ]
 
+viewGameModal :: Model -> View Action
+viewGameModal m
+  | isGameOver m = viewGameOverModal
+  | isLevelSuccessful m = viewLevelSuccessModal
+  | isGameStarting m = viewGameIntroModal
+  | otherwise = div_ [] []
+
 viewModel :: Model -> View Action
 viewModel m =
   div_
@@ -267,9 +320,7 @@ viewModel m =
             --    ]
             --    (mapWithIndex viewCodeSampleOption codeSampleList)
             --]
-        [ if isLevelSuccessful m
-            then viewLevelSuccessModal
-            else div_ [] []
+        [ viewGameModal m
         , div_
             [class_ "select is-primary"]
             [ select_
@@ -293,16 +344,12 @@ viewModel m =
         , if isGameOn m
             then if lvlExpectsSubmission (levelInd m)
                    then button_
-                          [ class_ "button is-primary"
-                          , style_ (submitButtonStyle (levelInd m))
+                          [ class_ "button is-danger"
                           , onClick SubmitLevelAttempt
                           ]
                           ["Submit"]
                    else button_
-                          [ class_ "button is-primary"
-                          , style_ (submitButtonStyle (levelInd m))
-                          , onClick GoToNextLevel
-                          ]
+                          [class_ "button is-primary", onClick GoToNextLevel]
                           ["Next"]
             else button_
                    [class_ "button is-primary", onClick StartGame]

@@ -6,6 +6,26 @@ import Data.Either
 import LevelLogic
 
 import qualified Data.Map as Map
+import Miso.String
+
+introText1 :: MisoString
+introText1 =
+  "In this gamified tutorial, we will try to learn the basics of the lambda calculus, \
+  \ as well as getting a feel on why this tiny language is Turing complete by rebuilding \
+  \ well known programming concepts such as booleans and simple arithmetic."
+
+introText2 :: MisoString
+introText2 =
+  "Some levels  require an input from you, some don't (especially in the beginning, \
+  \as you'll get  familiar with the basics). When an input is required, write the \
+  \final expression in the last line of the repl, without assigning it to a variable."
+
+gameOverText :: MisoString
+gameOverText =
+  "You beat the game! There is actually a lot more things to build\
+   \ , eg: more arithmetic operations, pairs, recursion (with the \
+   \ infamous Y combinator). Those might be added in the future. \
+   \ In any case, thank you for using this repl!"
 
 levels :: Map.Map Int Level
 levels =
@@ -191,12 +211,5 @@ levels =
                     ["\\s.\\z.s z", "\\s.\\z.s (s z)"]
                     "\\s.\\z.s (s z)"
                 ]
-          })
-    , ( 13
-      , Level
-          { lvlTitle = "End of game"
-          , initialCode = ""
-          , lvlExcerpt = "The End."
-          , expectations = []
           })
     ]
