@@ -49,7 +49,9 @@ substitution x s (T_ABS (T_VAR y) t1) =
   let fv = getFreeVars s
    in if y `notElem` fv
         then T_ABS (T_VAR y) (substitution x s t1)
-        else T_ABS (T_VAR (pickFreshName y fv)) (substitution x s t1)
+        else let freshName = pickFreshName y fv
+                 t1' = substitution y (T_VAR freshName) t1
+              in T_ABS (T_VAR freshName) (substitution x s t1')
 
 checkVarsAreBound :: Context -> Term -> Either String ()
 checkVarsAreBound c = g (Map.keys c)

@@ -108,6 +108,9 @@ spec = do
     it "prevents variable capture v4" $ do
       fmap show (parseThenEvalBeta "\\z1.\\z.((\\x.\\z.x) (z z1))") `shouldBe`
         Right "\\z1.\\z.\\z2.z z1"
+    it "prevents variable capture v5" $ do
+      fmap show (parseThenEvalBeta "(\\s.\\z.s z) (\\s.\\z.s z)") `shouldBe`
+        Right "\\z.\\z1.z z1"
     it "fully reduces complex expression" $ do
       fmap show (parseThenEvalBeta "\\z1.\\z.((\\x.\\z.x) z z1)") `shouldBe`
         Right "\\z1.\\z.z"
