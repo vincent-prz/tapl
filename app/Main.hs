@@ -4,16 +4,17 @@
 
 module Main where
 
-import Data.List
-
 import LevelData
 import LevelLogic
+
+import Lib.Lib
 import Untyped.Evaluator
 import Untyped.Parser
 
+import Data.List
 import qualified Data.Map as Map
 import Miso
-import Miso.String hiding (length, map, null, zip)
+import Miso.String hiding (head, length, map, null, zip)
 -- | JSAddle import
 #ifndef __GHCJS__
 import Language.Javascript.JSaddle.Warp as JSaddle
@@ -93,6 +94,11 @@ runProgram opts t =
            Left err -> Left $ show err
            Right t' -> Right [show t']
 
+-- FIXME: lexical error on multine string here.. why ?
+initialNotes :: MisoString
+initialNotes =
+  "Hi There! This is a repl for the lambda calculus language. You can type any expression you like, take a look at the code samples, or try a gamified tutorial if you want to know more about lambda calculus. I hope you'll  find it useful."
+
 main :: IO ()
 main = runApp $ startApp App {..}
   where
@@ -100,11 +106,10 @@ main = runApp $ startApp App {..}
     model =
       Model
         { opts = defaultOpts
-        --, input = code $ Prelude.head codeSampleList
-        , input = ""
+        , input = code $ head codeSampleList
         , output = ""
-        , notes = ""
-        , codeSample = Prelude.head codeSampleList
+        , notes = initialNotes
+        , codeSample = head codeSampleList
         , levelInd = -1
         , isGameStarting = False
         , isGameOver = False
@@ -237,6 +242,11 @@ notesTextAreaRows = "7"
 textAreaClassVal :: MisoString
 textAreaClassVal = "textarea is-medium"
 
+getDisplayStyle :: Bool -> Map.Map MisoString MisoString
+getDisplayStyle b
+  | b = Map.empty
+  | otherwise = Map.singleton "display" "none"
+
 viewGameIntroModal :: View Action
 viewGameIntroModal =
   div_
@@ -312,14 +322,6 @@ viewModel m =
         ]
     , div_
         []
-          --div_
-            --[class_ "select is-primary"]
-            --[ select_
-            --    [ on "change" valueDecoder $
-            --      ChangeSample . read . fromMisoString
-            --    ]
-            --    (mapWithIndex viewCodeSampleOption codeSampleList)
-            --]
         [ viewGameModal m
         , div_
             [class_ "select is-primary"]
@@ -331,16 +333,26 @@ viewModel m =
                 , option_ [value_ "0"] ["Print only the output"]
                 ]
             ]
-        --, div_
-        --    [class_ "select is-primary"]
-        --    [ select_
-        --        [ on "change" valueDecoder $
-        --          ChangeEvalStrategy . valueToEvaluationStrategy
-        --        ]
-        --        [ option_ [value_ "0"] ["Call by value"]
-        --        , option_ [value_ "1"] ["Full Beta reduction"]
-        --        ]
-        --    ]
+        , div_
+            [class_ "select is-primary"]
+            [ select_
+                [ on "change" valueDecoder $
+                  ChangeEvalStrategy . valueToEvaluationStrategy
+                ]
+                [ option_ [value_ "0"] ["Call by value"]
+                , option_ [value_ "1"] ["Full Beta reduction"]
+                ]
+            ]
+        , div_
+            [ style_ (getDisplayStyle (not (isGameOn m)))
+            , class_ "select is-primary"
+            ]
+            [ select_
+                [ on "change" valueDecoder $
+                  ChangeSample . read . fromMisoString
+                ]
+                (mapWithIndex viewCodeSampleOption codeSampleList)
+            ]
         , if isGameOn m
             then if lvlExpectsSubmission (levelInd m)
                    then button_
