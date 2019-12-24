@@ -45,7 +45,6 @@ data Action
   | ChangeEvalStrategy EvaluationStrategy
   | ChangeSample Int
   | RunProgram
-  | DisplayAbout
   | StartGame
   | ReallyStartGame
   | EndGame
@@ -64,7 +63,7 @@ runApp :: IO () -> IO ()
 runApp app = app
 #endif
 defaultOpts :: EvalOpts
-defaultOpts = EvalOpts True FullBeta
+defaultOpts = EvalOpts False FullBeta
 
 valueToEvaluationStrategy :: MisoString -> EvaluationStrategy
 valueToEvaluationStrategy "0" = CallByValue
@@ -165,12 +164,6 @@ updateModel action m =
             Right ts ->
               noEff $
               m {output = toMisoString $ Data.List.intercalate "\n -> " ts}
-    DisplayAbout ->
-      noEff $
-      m
-        { notes =
-            "Hi There! This is a repl for the lambda calculus language. You can type any expression you like, and / or take a look at the code samples. I hope you'll find it useful."
-        }
     StartGame -> noEff $ m {isGameStarting = True}
     ReallyStartGame -> noEff $ goToNextLevel m {isGameStarting = False}
     SubmitLevelAttempt ->
@@ -186,7 +179,6 @@ updateModel action m =
       m {levelInd = -1, isGameOver = False, input = "", output = "", notes = ""}
     NoOp -> noEff m
 
---            toMisoString <$> Data.List.intercalate "\n -> " <$>
 viewCodeSampleOption :: CodeSample -> Int -> View Action
 viewCodeSampleOption cs ind =
   option_ [value_ $ toMisoString $ show ind] [text $ title cs]
@@ -293,8 +285,12 @@ viewModel m =
                 [ on "change" valueDecoder $
                   ChangeVerbose . toEnum . read . fromMisoString
                 ]
-                [ option_ [value_ "1"] ["Print all reductions steps"]
-                , option_ [value_ "0"] ["Print only the output"]
+                [ option_
+                    [selected_ (verbose (opts m)), value_ "1"]
+                    ["Print all reductions steps"]
+                , option_
+                    [selected_ (not (verbose (opts m))), value_ "0"]
+                    ["Print only the output"]
                 ]
             ]
         , div_
@@ -303,8 +299,12 @@ viewModel m =
                 [ on "change" valueDecoder $
                   ChangeEvalStrategy . valueToEvaluationStrategy
                 ]
-                [ option_ [value_ "0"] ["Call by value"]
-                , option_ [value_ "1"] ["Full Beta reduction"]
+                [ option_
+                    [selected_ (strategy (opts m) == CallByValue), value_ "0"]
+                    ["Call by value"]
+                , option_
+                    [selected_ (strategy (opts m) == FullBeta), value_ "1"]
+                    ["Full Beta reduction"]
                 ]
             ]
         , div_
@@ -331,7 +331,6 @@ viewModel m =
                    [class_ "button is-primary", onClick StartGame]
                    ["Start Game"]
         , button_ [class_ "button is-primary", onClick RunProgram] ["Run!"]
-        --, button_ [class_ "button", onClick DisplayAbout] ["About"]
         ]
     , div_
         [class_ "columns"]
