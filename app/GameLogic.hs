@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module LevelLogic where
+module GameLogic where
 
 import Data.Either
 import Untyped.Evaluator

@@ -1,9 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module LevelData where
+module GameData where
 
 import Data.Either
-import LevelLogic
+import GameLogic
 
 import qualified Data.Map as Map
 import Miso.String
