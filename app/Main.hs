@@ -4,15 +4,18 @@
 
 module Main where
 
-import Data.List
+import CodeSample
+import GameData
+import GameLogic
 
-import qualified Data.Map as Map
 import Lib.Lib
 import Untyped.Evaluator
 import Untyped.Parser
 
+import Data.List
+import qualified Data.Map as Map
 import Miso
-import Miso.String hiding (map, null)
+import Miso.String hiding (head, length, map, null, zip)
 -- | JSAddle import
 #ifndef __GHCJS__
 import Language.Javascript.JSaddle.Warp as JSaddle
@@ -24,19 +27,16 @@ data EvalOpts = EvalOpts
   , strategy :: EvaluationStrategy
   } deriving (Eq)
 
-data CodeSample = CodeSample
-  { title :: MisoString
-  , code :: MisoString
-  , excerpt :: MisoString
-  } deriving (Eq)
-
 data Model = Model
   { opts :: EvalOpts
   , input :: MisoString
   , output :: MisoString
   , notes :: MisoString
-  , lastRunIsSuccesful :: Maybe Bool
   , codeSample :: CodeSample
+  , levelInd :: Int
+  , isGameStarting :: Bool
+  , isGameOver :: Bool
+  , isLevelSuccessful :: Bool
   } deriving (Eq)
 
 data Action
@@ -45,7 +45,11 @@ data Action
   | ChangeEvalStrategy EvaluationStrategy
   | ChangeSample Int
   | RunProgram
-  | DisplayAbout
+  | StartGame
+  | ReallyStartGame
+  | EndGame
+  | SubmitLevelAttempt
+  | GoToNextLevel
   | NoOp
   deriving (Eq)
 #ifndef __GHCJS__
@@ -59,7 +63,7 @@ runApp :: IO () -> IO ()
 runApp app = app
 #endif
 defaultOpts :: EvalOpts
-defaultOpts = EvalOpts True FullBeta
+defaultOpts = EvalOpts False FullBeta
 
 valueToEvaluationStrategy :: MisoString -> EvaluationStrategy
 valueToEvaluationStrategy "0" = CallByValue
@@ -84,6 +88,11 @@ runProgram opts t =
            Left err -> Left $ show err
            Right t' -> Right [show t']
 
+-- FIXME: lexical error on multine string here.. why ?
+initialNotes :: MisoString
+initialNotes =
+  "Hi There! This is a repl for the lambda calculus language. You can type any expression you like, take a look at the code samples, or try a gamified tutorial if you want to know more about lambda calculus. I hope you'll  find it useful."
+
 main :: IO ()
 main = runApp $ startApp App {..}
   where
@@ -91,50 +100,53 @@ main = runApp $ startApp App {..}
     model =
       Model
         { opts = defaultOpts
-        , input = code $ Prelude.head codeSampleList
+        , input = code $ head codeSampleList
         , output = ""
-        , notes = excerpt $ Prelude.head codeSampleList
-        , lastRunIsSuccesful = Nothing
-        , codeSample = Prelude.head codeSampleList
+        , notes = initialNotes
+        , codeSample = head codeSampleList
+        , levelInd = -1
+        , isGameStarting = False
+        , isGameOver = False
+        , isLevelSuccessful = False
         }
-    update = updateModel -- update function
-    view = viewModel -- view function
-    events = defaultEvents -- default delegated events
-    subs = [] -- empty subscription list
-    mountPoint = Nothing -- mount point for application (Nothing defaults to 'body')
+    update = updateModel
+    view = viewModel
+    events = defaultEvents
+    subs = []
+    mountPoint = Nothing
 
-codeSampleList :: [CodeSample]
-codeSampleList =
-  [ CodeSample
-      { title = "The Identity function"
-      , code = "id = \\x.x\nid \\x.x x"
-      , excerpt =
-          "The identity function is the simplest function you can build."
-      }
-  , CodeSample
-      { title = "Booleans"
-      , code =
-          "true = \\t.\\f.t\nfalse = \\t.\\f.f\nnot = \\b.b false true\nnot true"
-      , excerpt =
-          "Here is how booleans can be encoded in the lambda calculus. Can you build the `and` function ? `Or`, `xor`, etc..."
-      }
-  , CodeSample
-      { title = "Numbers"
-      , code =
-          "0 = \\s.\\z.z\n1 = \\s.\\z.s z\n2 = \\s.\\z.s (s z)\nsucc = \\n.\\s.\\z.s (n s z)\nsucc 1"
-      , excerpt =
-          "Here is an encoding of numbers. The idea is: a number `n` is a function which applies `n` times its first argument `s` to its second argument `z`."
-      }
-  , CodeSample
-      { title = "Numbers: Addition"
-      , code =
-          "0 = \\s.\\z.z\n1 = \\s.\\z.s z\n2 = \\s.\\z.s (s z)\nsucc = \\n.\\s.\\z.s (n s z)\nplus = \\m.\\n.\\s.\\z.m s (n s z)\nplus 2 2"
-      , excerpt =
-          "Here is how addition would be defined. Can you define the multiplication ?"
-      }
-  ]
+isGameOn :: Model -> Bool
+isGameOn m = levelInd m >= 0
 
--- FIXME: clunkyness with records
+lvlExpectsSubmission :: Int -> Bool
+lvlExpectsSubmission ind =
+  case levels Map.!? ind of
+    Nothing -> error $ "Error: could not get level " ++ show ind
+    Just lvl -> not (null (expectations lvl))
+
+goToNextLevel :: Model -> Model
+goToNextLevel m =
+  let nextLevelInd = levelInd m + 1
+      nextLevel = levels Map.!? nextLevelInd
+   in if nextLevelInd > length (Map.keys levels) - 1
+        then m {isLevelSuccessful = False, isGameOver = True}
+        else m
+               { levelInd = nextLevelInd
+               , isLevelSuccessful = False
+               , input = maybe "" initialCode nextLevel
+               , output = ""
+               , notes =
+                   case nextLevel of
+                     Nothing ->
+                       error $
+                       "Error: could not get level " ++ show (levelInd m)
+                     Just lvl ->
+                       "Level " <> toMisoString (show nextLevelInd) <> ": " <>
+                       lvlTitle lvl <>
+                       "\n\n" <>
+                       lvlExcerpt lvl
+               }
+
 updateModel :: Action -> Model -> Effect Action Model
 updateModel action m =
   case action of
@@ -148,21 +160,23 @@ updateModel action m =
     RunProgram ->
       let result = processInput (opts m) (fromMisoString $ input m)
        in case result of
-            Left err ->
-              noEff $
-              m {output = toMisoString err, lastRunIsSuccesful = Just False}
+            Left err -> noEff $ m {output = toMisoString err}
             Right ts ->
               noEff $
-              m
-                { output = toMisoString $ Data.List.intercalate "\n -> " ts
-                , lastRunIsSuccesful = Just True
-                }
-    DisplayAbout ->
+              m {output = toMisoString $ Data.List.intercalate "\n -> " ts}
+    StartGame -> noEff $ m {isGameStarting = True}
+    ReallyStartGame -> noEff $ goToNextLevel m {isGameStarting = False}
+    SubmitLevelAttempt ->
+      case levels Map.!? levelInd m of
+        Nothing -> error $ "Error: could not get level " ++ show (levelInd m)
+        Just lvl ->
+          case processSubmission lvl (fromMisoString (input m)) of
+            Left err -> noEff $ m {output = toMisoString err}
+            Right _ -> noEff $ m {isLevelSuccessful = True}
+    GoToNextLevel -> noEff $ goToNextLevel m
+    EndGame ->
       noEff $
-      m
-        { notes =
-            "Hi There! This is a repl for the lambda calculus language. You can type any expression you like, and / or take a look at the code samples. I hope you'll find it useful."
-        }
+      m {levelInd = -1, isGameOver = False, input = "", output = "", notes = ""}
     NoOp -> noEff m
 
 viewCodeSampleOption :: CodeSample -> Int -> View Action
@@ -181,12 +195,78 @@ outputTextAreaRows = "9"
 notesTextAreaRows :: MisoString
 notesTextAreaRows = "7"
 
-textAreaClassVal :: Maybe Bool -> MisoString
-textAreaClassVal isSuccess =
-  case isSuccess of
-    Nothing -> "textarea is-medium"
-    (Just True) -> "textarea is-medium is-success"
-    (Just False) -> "textarea is-medium is-danger"
+textAreaClassVal :: MisoString
+textAreaClassVal = "textarea is-medium"
+
+getDisplayStyle :: Bool -> Map.Map MisoString MisoString
+getDisplayStyle b
+  | b = Map.empty
+  | otherwise = Map.singleton "display" "none"
+
+viewGameIntroModal :: View Action
+viewGameIntroModal =
+  div_
+    [class_ "is-active modal"]
+    [ div_ [class_ "modal-background"] []
+    , div_
+        [class_ "modal-card"]
+        [ header_
+            [class_ "modal-card-head"]
+            [p_ [class_ "modal-card-title"] ["Welcome!"]]
+        , section_ [class_ "modal-card-body"] [text introText1]
+        , section_ [class_ "modal-card-body"] [text introText2]
+        , footer_
+            [class_ "modal-card-foot"]
+            [ button_
+                [class_ "button is-success", onClick ReallyStartGame]
+                ["Ok"]
+            ]
+        ]
+    ]
+
+viewGameOverModal :: View Action
+viewGameOverModal =
+  div_
+    [class_ "is-active modal"]
+    [ div_ [class_ "modal-background"] []
+    , div_
+        [class_ "modal-card"]
+        [ header_
+            [class_ "modal-card-head"]
+            [p_ [class_ "modal-card-title"] ["Congratulations!"]]
+        , section_ [class_ "modal-card-body"] [text gameOverText]
+        , footer_
+            [class_ "modal-card-foot"]
+            [button_ [class_ "button is-success", onClick EndGame] ["Ok"]]
+        ]
+    ]
+
+viewLevelSuccessModal :: View Action
+viewLevelSuccessModal =
+  div_
+    [class_ "is-active modal"]
+    [ div_ [class_ "modal-background"] []
+    , div_
+        [class_ "modal-card"]
+        [ header_
+            [class_ "modal-card-head"]
+            [p_ [class_ "modal-card-title"] ["Good answer!"]]
+        , section_ [class_ "modal-card-body"] ["Congrats!"]
+        , footer_
+            [class_ "modal-card-foot"]
+            [ button_
+                [class_ "button is-success", onClick GoToNextLevel]
+                ["next"]
+            ]
+        ]
+    ]
+
+viewGameModal :: Model -> View Action
+viewGameModal m
+  | isGameOver m = viewGameOverModal
+  | isLevelSuccessful m = viewLevelSuccessModal
+  | isGameStarting m = viewGameIntroModal
+  | otherwise = div_ [] []
 
 viewModel :: Model -> View Action
 viewModel m =
@@ -198,22 +278,19 @@ viewModel m =
         ]
     , div_
         []
-        [ div_
-            [class_ "select is-primary"]
-            [ select_
-                [ on "change" valueDecoder $
-                  ChangeSample . read . fromMisoString
-                ]
-                (mapWithIndex viewCodeSampleOption codeSampleList)
-            ]
+        [ viewGameModal m
         , div_
             [class_ "select is-primary"]
             [ select_
                 [ on "change" valueDecoder $
                   ChangeVerbose . toEnum . read . fromMisoString
                 ]
-                [ option_ [value_ "1"] ["Print all reductions steps"]
-                , option_ [value_ "0"] ["Print only the output"]
+                [ option_
+                    [selected_ (verbose (opts m)), value_ "1"]
+                    ["Print all reductions steps"]
+                , option_
+                    [selected_ (not (verbose (opts m))), value_ "0"]
+                    ["Print only the output"]
                 ]
             ]
         , div_
@@ -222,12 +299,38 @@ viewModel m =
                 [ on "change" valueDecoder $
                   ChangeEvalStrategy . valueToEvaluationStrategy
                 ]
-                [ option_ [value_ "0"] ["Call by value"]
-                , option_ [value_ "1"] ["Full Beta reduction"]
+                [ option_
+                    [selected_ (strategy (opts m) == CallByValue), value_ "0"]
+                    ["Call by value"]
+                , option_
+                    [selected_ (strategy (opts m) == FullBeta), value_ "1"]
+                    ["Full Beta reduction"]
                 ]
             ]
+        , div_
+            [ style_ (getDisplayStyle (not (isGameOn m)))
+            , class_ "select is-primary"
+            ]
+            [ select_
+                [ on "change" valueDecoder $
+                  ChangeSample . read . fromMisoString
+                ]
+                (mapWithIndex viewCodeSampleOption codeSampleList)
+            ]
+        , if isGameOn m
+            then if lvlExpectsSubmission (levelInd m)
+                   then button_
+                          [ class_ "button is-danger"
+                          , onClick SubmitLevelAttempt
+                          ]
+                          ["Submit"]
+                   else button_
+                          [class_ "button is-primary", onClick GoToNextLevel]
+                          ["Next"]
+            else button_
+                   [class_ "button is-primary", onClick StartGame]
+                   ["Start Game"]
         , button_ [class_ "button is-primary", onClick RunProgram] ["Run!"]
-        , button_ [class_ "button", onClick DisplayAbout] ["About"]
         ]
     , div_
         [class_ "columns"]
@@ -235,7 +338,7 @@ viewModel m =
             [class_ "column is-two-thirds"]
             [ textarea_
                 [ style_ $ Map.singleton "background-color" inputTextAreaColor
-                , class_ $ textAreaClassVal (lastRunIsSuccesful m)
+                , class_ textAreaClassVal
                 , rows_ inputTextAreaRows
                 , value_ (input m)
                 , onInput ChangeInput
@@ -245,14 +348,14 @@ viewModel m =
         , div_
             [class_ "column"]
             [ textarea_
-                [ class_ $ textAreaClassVal Nothing
+                [ class_ textAreaClassVal
                 , rows_ outputTextAreaRows
                 , value_ (output m)
                 , readonly_ True
                 ]
                 []
             , textarea_
-                [ class_ $ textAreaClassVal Nothing
+                [ class_ textAreaClassVal
                 , rows_ notesTextAreaRows
                 , value_ (notes m)
                 , readonly_ True

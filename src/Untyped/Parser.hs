@@ -2,7 +2,7 @@ module Untyped.Parser where
 
 import Control.Monad
 import Data.Functor
-import Data.List (intercalate)
+import Data.List (elemIndex, intercalate)
 import Text.Parsec.Prim hiding (try)
 import Text.ParserCombinators.Parsec
 
@@ -65,7 +65,6 @@ data Term
   | T_APP Term
           Term
   | T_UNIT
-  deriving (Eq)
 
 instance Show Term where
   show (T_VAR s) = s
@@ -154,3 +153,24 @@ fullParser :: String -> Either ParseError Program
 fullParser s = do
   lexemes <- lexer s
   parse parseProgram "parsing error" lexemes
+
+singleTermParser :: String -> Either ParseError Term
+singleTermParser s = do
+  lexemes <- lexer s
+  parse parseTerm "parsing error" lexemes
+
+-- De Bruijn representation, used for Term equality equality
+data DeBruijn
+  = DB_VAR Int
+  | DB_ABS DeBruijn
+  | DB_APP DeBruijn
+           DeBruijn
+  deriving (Eq)
+
+removeNames :: [String] -> Term -> Maybe DeBruijn
+removeNames c (T_VAR s) = DB_VAR <$> elemIndex s c
+removeNames c (T_APP t1 t2) = DB_APP <$> removeNames c t1 <*> removeNames c t2
+removeNames c (T_ABS (T_VAR s) t) = DB_ABS <$> removeNames (s : c) t
+
+instance Eq Term where
+  (==) t1 t2 = removeNames [] t1 == removeNames [] t2
