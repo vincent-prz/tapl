@@ -27,11 +27,44 @@ stack run
 \t.\f.t
 ```
 
+# Options
+
+2 evaluations strategies are supported: call by value and full beta reduction. The main difference is that the latter will reduce the expressions fully, while call by value will not reduce anything inside abstractions.
+
+## Evaluation strategy
+
+```ml
+> :beta
+Switching to full beta evaluation mode.
+> \x.(\x.x) x
+\x.x
+> :cbv
+Switching to call by value evaluation mode.
+> \x.(\x.x) x
+\x.(\x.x) x
+```
+
+## Verbose mode
+
+It is possible to display all the reduction steps:
+```ml
+> :verbose on
+Enabling verbose mode.
+> (\x.\y.y) (\s.\z.z) (\x.(\x.x) x)
+(\x.\y.y) \s.\z.z \x.(\x.x) x
+(\y.y) \x.x
+\x.x
+> :verbose off
+Disabling verbose mode.
+```
+
 # Status
 
  - [x] Untyped lambda calculus
  - [X] A CLI REPL
  - [X] A web REPL
+ - [X] 2 evaluation strategies supported: Call by value and full beta reduction
+ - [X] possibility to print all the reduction steps
  - [X] Variable assignment feature
  - [ ] Simply typed lambda calculus
  
