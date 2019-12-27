@@ -14,7 +14,7 @@ stack run
 
 # Examples
 
-```
+```ml
 > \x.x
 \x.x
 > \t.\f.t
@@ -26,3 +26,13 @@ stack run
 > id \t.\f.t
 \t.\f.t
 ```
+
+# Status
+
+ - [x] Untyped lambda calculus
+ - [X] A CLI REPL
+ - [X] A web REPL
+ - [X] Variable assignment feature
+ - [ ] Simply typed lambda calculus
+ 
+ ...
