@@ -19,6 +19,10 @@ stack run
 \t.\f.t
 > (\t.\f.\t) (\x.x) (\x.x x)
 \x.x
+> id = \x.x
+()
+> id \t.\f.t
+\t.\f.t
 ```
 # Browser version
 
