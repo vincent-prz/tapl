@@ -28,6 +28,7 @@ library:
   - parsec
   - containers
   - mtl
+  - array
 
 executables:
   tapl-exe:
