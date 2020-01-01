@@ -138,7 +138,6 @@ data Term
   = Var String
   | Abs String Type Term
   | App Term Term
-  deriving (Show)
 {-# LINE 1 "templates/GenericTemplate.hs" #-}
 {-# LINE 1 "templates/GenericTemplate.hs" #-}
 {-# LINE 1 "<built-in>" #-}

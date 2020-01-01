@@ -27,5 +27,4 @@ data Term
   = Var String
   | Abs String Type Term
   | App Term Term
-  deriving (Show)
 }
