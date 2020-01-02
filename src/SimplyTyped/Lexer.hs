@@ -3,6 +3,7 @@ module SimplyTyped.Lexer where
 import Data.Functor
 import Text.ParserCombinators.Parsec
 
+-- TODO: put this and `Term` in a separate file.
 data Type
   = TBool
   | Arrow Type
@@ -11,7 +12,10 @@ data Type
 
 instance Show Type where
   show TBool = "Bool"
-  show (Arrow t1 t2) = show t1 ++ "->" ++ show t2
+  show (Arrow t1 t2) = showL t1 ++ "->" ++ show t2
+    where
+      showL arr@(Arrow _ _) = "(" ++ show arr ++ ")"
+      showL t = show t
 
 data Token
   = TOK_VAR String
