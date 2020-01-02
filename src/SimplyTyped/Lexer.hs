@@ -20,6 +20,9 @@ data Token
   | TOK_WHITESPACE
   | TOK_LEFT_PAREN
   | TOK_RIGHT_PAREN
+  | TOK_IF
+  | TOK_THEN
+  | TOK_ELSE
   | TOK_COLON
   | TOK_TYPE Type
   deriving (Eq, Show)
@@ -44,13 +47,19 @@ parseWhitespace = many1 (oneOf [' ', '\t']) $> TOK_WHITESPACE
 parseToken :: Parser Token
 parseToken =
   choice
-    [ try parseVariable
+    [ try $ string "if" $> TOK_IF
+    , try $ string "then" $> TOK_THEN
+    , try $ string "else" $> TOK_ELSE
+    , try parseVariable
     , try parseType
     , try parseWhitespace
     , try $ char '\\' $> TOK_LAMBDA
     , try $ char '.' $> TOK_DOT
     , try $ char '(' $> TOK_LEFT_PAREN
     , try $ char ')' $> TOK_RIGHT_PAREN
+    , try $ string "if" $> TOK_IF
+    , try $ string "then" $> TOK_THEN
+    , try $ string "else" $> TOK_ELSE
     , try $ char ':' $> TOK_COLON
     ]
 
