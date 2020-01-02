@@ -15,7 +15,7 @@ instance Show Term where
       showL (Var s) = s
       showL t@Abs {} = "(" ++ show t ++ ")"
       showL t@(App _ _) = show t
-      showL t@IfThenElse {} = show t
+      showL t@IfThenElse {} = "(" ++ show t ++ ")"
       showR (Var s) = s
       showR t@Abs {} = show t
       showR t@(App _ _) = "(" ++ show t ++ ")"

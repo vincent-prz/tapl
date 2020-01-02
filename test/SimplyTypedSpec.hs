@@ -21,6 +21,9 @@ spec =
       show (fullParser "(\\x:Bool.x) $ x") `shouldBe` "(\\x:Bool.x) $ x"
     it "if then else" $
       show (fullParser "if x then y else z") `shouldBe` "if x then y else z"
-    it "application of if then else" $ -- ambiguity here between if and application ??
+    it "application inside if then else" $
       show (fullParser "if x then y else z $ f") `shouldBe`
       "if x then y else z $ f"
+    it "application of if then else" $
+      show (fullParser "(if x then y else z) $ f") `shouldBe`
+      "(if x then y else z) $ f"
