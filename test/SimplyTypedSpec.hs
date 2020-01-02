@@ -12,3 +12,5 @@ spec =
       show (fullParser "\\x:Bool->Bool.x") `shouldBe` "\\x:Bool->Bool.x"
     it "2 params lambda" $
       show (fullParser "\\x:Bool.\\y:Bool.x") `shouldBe` "\\x:Bool.\\y:Bool.x"
+    it "simple application" $ show (fullParser "x y") `shouldBe` "x y"
+    it "double application" $ show (fullParser "x y z") `shouldBe` "x y z"

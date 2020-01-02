@@ -8,14 +8,14 @@ import SimplyTyped.Parser
 instance Show Term where
   show (Var s) = s
   show (Abs s t b) = "\\" ++ s ++ ":" ++ show t ++ "." ++ show b
-  --show (T_APP t1 t2) = showL t1 ++ " " ++ showR t2
-    --where
-    --  showL (Var s) = s
-    --  showL t@(Abs _ _) = "(" ++ show t ++ ")"
-    --  --showL t@(T_APP _ _) = show t
-    --  showR (Var s) = s
-    --  showR t@(Abs _ _) = show t
-    --  --showR t@(T_APP _ _) = "(" ++ show t ++ ")"
+  show (App t1 t2) = showL t1 ++ " " ++ showR t2
+    where
+      showL (Var s) = s
+      showL t@Abs {} = "(" ++ show t ++ ")"
+      showL t@(App _ _) = show t
+      showR (Var s) = s
+      showR t@Abs {} = show t
+      showR t@(App _ _) = "(" ++ show t ++ ")"
 
 fullParser :: String -> Term
 fullParser s =
