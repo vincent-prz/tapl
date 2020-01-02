@@ -12,13 +12,15 @@ spec =
       show (fullParser "\\x:Bool->Bool.x") `shouldBe` "\\x:Bool->Bool.x"
     it "2 params lambda" $
       show (fullParser "\\x:Bool.\\y:Bool.x") `shouldBe` "\\x:Bool.\\y:Bool.x"
-    it "simple application" $ show (fullParser "x y") `shouldBe` "x y"
-    it "double application" $ show (fullParser "x y z") `shouldBe` "x y z"
+    it "simple application" $ show (fullParser "x $ y") `shouldBe` "x $ y"
+    it "double application" $
+      show (fullParser "x $ y $ z") `shouldBe` "x $ y $ z"
     it "application with parens" $
-      show (fullParser "x (y z)") `shouldBe` "x (y z)"
+      show (fullParser "x $ (y $ z)") `shouldBe` "x $ (y $ z)"
     it "application of lambda" $
-      show (fullParser "(\\x:Bool.x) x") `shouldBe` "(\\x:Bool.x) x"
+      show (fullParser "(\\x:Bool.x) $ x") `shouldBe` "(\\x:Bool.x) $ x"
     it "if then else" $
       show (fullParser "if x then y else z") `shouldBe` "if x then y else z"
     it "application of if then else" $ -- ambiguity here between if and application ??
-      show (fullParser "if x then y else z f") `shouldBe` "if x then y else z f"
+      show (fullParser "if x then y else z $ f") `shouldBe`
+      "if x then y else z $ f"

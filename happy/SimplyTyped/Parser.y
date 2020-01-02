@@ -11,7 +11,7 @@ import SimplyTyped.Lexer
         var { TOK_VAR $$ }        
         lambda { TOK_LAMBDA }        
         '.' { TOK_DOT }        
-        ' ' { TOK_WHITESPACE }
+        '$' { TOK_DOLLAR }
         '(' { TOK_LEFT_PAREN }        
         ')' { TOK_RIGHT_PAREN }        
         if { TOK_IF }
@@ -20,14 +20,14 @@ import SimplyTyped.Lexer
         ':' { TOK_COLON }        
         type { TOK_TYPE $$ }        
 
-%left ' '
+%left '$'
 %%
 
 Term    : var { Var $1 }
         | lambda var ':' type '.' Term { Abs $2 $4 $6 }
-        | Term ' ' Term { App $1 $3 }
+        | Term '$' Term { App $1 $3 }
         | '(' Term ')' { $2 }
-        | if ' ' Term ' ' then ' ' Term ' ' else ' ' Term { IfThenElse $3 $7 $11 }
+        | if Term then Term else Term { IfThenElse $2 $4 $6 }
 {
 parseError :: [Token] -> a
 parseError _ = error "Parse error"

@@ -10,7 +10,7 @@ instance Show Term where
   show (Abs s t b) = "\\" ++ s ++ ":" ++ show t ++ "." ++ show b
   show (IfThenElse t1 t2 t3) =
     "if " ++ show t1 ++ " then " ++ show t2 ++ " else " ++ show t3
-  show (App t1 t2) = showL t1 ++ " " ++ showR t2
+  show (App t1 t2) = showL t1 ++ " $ " ++ showR t2
     where
       showL (Var s) = s
       showL t@Abs {} = "(" ++ show t ++ ")"

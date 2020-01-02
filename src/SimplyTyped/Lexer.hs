@@ -17,7 +17,7 @@ data Token
   = TOK_VAR String
   | TOK_LAMBDA
   | TOK_DOT
-  | TOK_WHITESPACE
+  | TOK_DOLLAR
   | TOK_LEFT_PAREN
   | TOK_RIGHT_PAREN
   | TOK_IF
@@ -41,8 +41,8 @@ parseArrowType =
 parseType :: Parser Token
 parseType = TOK_TYPE <$> parseArrowType
 
-parseWhitespace :: Parser Token
-parseWhitespace = many1 (oneOf [' ', '\t']) $> TOK_WHITESPACE
+whitespace :: Parser String
+whitespace = many (oneOf [' ', '\t'])
 
 parseToken :: Parser Token
 parseToken =
@@ -52,7 +52,7 @@ parseToken =
     , try $ string "else" $> TOK_ELSE
     , try parseVariable
     , try parseType
-    , try parseWhitespace
+    , try $ char '$' $> TOK_DOLLAR
     , try $ char '\\' $> TOK_LAMBDA
     , try $ char '.' $> TOK_DOT
     , try $ char '(' $> TOK_LEFT_PAREN
@@ -64,7 +64,7 @@ parseToken =
     ]
 
 parseTokens :: Parser [Token]
-parseTokens = many parseToken
+parseTokens = many (parseToken <* whitespace)
 
 lexer :: String -> Either ParseError [Token]
 lexer input = parse (parseTokens <* eof) "lexing error" input
