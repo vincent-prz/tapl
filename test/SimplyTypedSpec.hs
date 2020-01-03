@@ -63,3 +63,16 @@ spec = do
     it "failure when applying something to Bool constant" $
       typecheck (fullParser "tru $ fls") `shouldBe`
       Left (FuncAppliedToConst TBool)
+    it "if then else" $
+      show <$>
+      typecheck (fullParser "if tru then tru else fls") `shouldBe` Right "Bool"
+    it "if then else of functions" $
+      show <$>
+      typecheck (fullParser "if tru then \\x:Bool.x else \\y:Bool.y") `shouldBe`
+      Right "Bool->Bool"
+    it "failure when condition of if is not Bool" $
+      typecheck (fullParser "if \\x:Bool.x then tru else fls") `shouldBe`
+      Left (IfCondNotBool (Arrow TBool TBool))
+    it "failure when branches of if don't have the same type" $
+      typecheck (fullParser "if fls then tru else \\x:Bool.x") `shouldBe`
+      Left (IfBranchesTypeMismatch TBool (Arrow TBool TBool))
