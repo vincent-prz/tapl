@@ -19,6 +19,8 @@ instance Show Type where
 
 data Token
   = TOK_VAR String
+  | TOK_TRUE
+  | TOK_FALSE
   | TOK_LAMBDA
   | TOK_DOT
   | TOK_DOLLAR
@@ -51,7 +53,9 @@ whitespace = many (oneOf [' ', '\t'])
 parseToken :: Parser Token
 parseToken =
   choice
-    [ try $ string "if" $> TOK_IF
+    [ try $ string "true" $> TOK_TRUE
+    , try $ string "false" $> TOK_FALSE
+    , try $ string "if" $> TOK_IF
     , try $ string "then" $> TOK_THEN
     , try $ string "else" $> TOK_ELSE
     , try parseVariable

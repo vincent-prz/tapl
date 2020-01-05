@@ -1,7 +1,7 @@
 module SimplyTypedSpec where
 
 import SimplyTyped.Lexer
-import SimplyTyped.ParserWrapper
+import SimplyTyped.Parser
 import SimplyTyped.TypeChecker
 import Test.Hspec
 
@@ -30,49 +30,50 @@ spec = do
       show (fullParser "(if x then y else z) $ f") `shouldBe`
       "(if x then y else z) $ f"
   describe "Simply typed typechecking" $ do
-    it "tru" $ show <$> typecheck (fullParser "tru") `shouldBe` Right "Bool"
-    it "fls" $ show <$> typecheck (fullParser "fls") `shouldBe` Right "Bool"
+    it "true" $ show <$> typecheck (fullParser "true") `shouldBe` Right "Bool"
+    it "false" $ show <$> typecheck (fullParser "false") `shouldBe` Right "Bool"
     it "Bool identity" $
       show <$> typecheck (fullParser "\\x:Bool.x") `shouldBe` Right "Bool->Bool"
     it "Bool->Bool identity" $
       show <$>
       typecheck (fullParser "\\x:Bool->Bool.x") `shouldBe`
       Right "(Bool->Bool)->Bool->Bool"
-    it "application of id to tru" $
+    it "application of id to true" $
       show <$>
-      typecheck (fullParser "(\\x:Bool.x) $ tru") `shouldBe` Right "Bool"
+      typecheck (fullParser "(\\x:Bool.x) $ true") `shouldBe` Right "Bool"
     it "2 arg func" $
       show <$>
       typecheck (fullParser "\\x:Bool. \\y:Bool. x") `shouldBe`
       Right "Bool->Bool->Bool"
     it "application of 2 arg func" $
       show <$>
-      typecheck (fullParser "(\\x:Bool. \\y:Bool. x) $ fls $ tru") `shouldBe`
+      typecheck (fullParser "(\\x:Bool. \\y:Bool. x) $ false $ true") `shouldBe`
       Right "Bool"
     it "currying of 2 arg func" $
       show <$>
-      typecheck (fullParser "(\\x:Bool. \\y:Bool. x) $ fls") `shouldBe`
+      typecheck (fullParser "(\\x:Bool. \\y:Bool. x) $ false") `shouldBe`
       Right "Bool->Bool"
     it "lambda taking function as arg" $
       show <$>
-      typecheck (fullParser "\\f:Bool->Bool.f $ (f $ tru)") `shouldBe`
+      typecheck (fullParser "\\f:Bool->Bool.f $ (f $ true)") `shouldBe`
       Right "(Bool->Bool)->Bool"
     it "failure when applying Bool identity to function" $
       typecheck (fullParser "(\\x:Bool.x) $ (\\x:Bool.x)") `shouldBe`
       Left (ArgMisMatch {expected = TBool, got = Arrow TBool TBool})
     it "failure when applying something to Bool constant" $
-      typecheck (fullParser "tru $ fls") `shouldBe`
+      typecheck (fullParser "true $ false") `shouldBe`
       Left (FuncAppliedToConst TBool)
     it "if then else" $
       show <$>
-      typecheck (fullParser "if tru then tru else fls") `shouldBe` Right "Bool"
+      typecheck (fullParser "if true then true else false") `shouldBe`
+      Right "Bool"
     it "if then else of functions" $
       show <$>
-      typecheck (fullParser "if tru then \\x:Bool.x else \\y:Bool.y") `shouldBe`
+      typecheck (fullParser "if true then \\x:Bool.x else \\y:Bool.y") `shouldBe`
       Right "Bool->Bool"
     it "failure when condition of if is not Bool" $
-      typecheck (fullParser "if \\x:Bool.x then tru else fls") `shouldBe`
-      Left (IfCondNotBool (Arrow TBool TBool))
+      typecheck (fullParser "if \\x:Bool.x then true else false") `shouldBe`
+      Left (IfGuardNotBool (Arrow TBool TBool))
     it "failure when branches of if don't have the same type" $
-      typecheck (fullParser "if fls then tru else \\x:Bool.x") `shouldBe`
+      typecheck (fullParser "if false then true else \\x:Bool.x") `shouldBe`
       Left (IfBranchesTypeMismatch TBool (Arrow TBool TBool))

@@ -10,16 +10,13 @@ data TypingError
   = ArgMisMatch { expected :: Type
                 , got :: Type }
   | FuncAppliedToConst Type
-  | IfCondNotBool Type
+  | IfGuardNotBool Type
   | IfBranchesTypeMismatch Type
                            Type
   deriving (Eq, Show)
 
-initialContext :: TypeContext
-initialContext = Map.fromList [("tru", TBool), ("fls", TBool)]
-
 typecheck :: Term -> Either TypingError Type
-typecheck = typecheckWithContext initialContext
+typecheck = typecheckWithContext Map.empty
 
 typecheckWithContext :: TypeContext -> Term -> Either TypingError Type
 typecheckWithContext ctx (Var s) =
@@ -32,6 +29,8 @@ typecheckWithContext ctx (App t1 t2) = do
   typ1 <- typecheckWithContext ctx t1
   typ2 <- typecheckWithContext ctx t2
   typecheckApplication typ1 typ2
+typecheckWithContext ctx ConstTrue = Right TBool
+typecheckWithContext ctx ConstFalse = Right TBool
 typecheckWithContext ctx (IfThenElse t1 t2 t3) = do
   typ1 <- typecheckWithContext ctx t1
   if typ1 == TBool
@@ -41,7 +40,7 @@ typecheckWithContext ctx (IfThenElse t1 t2 t3) = do
       if typ2 == typ3
         then return typ2
         else Left $ IfBranchesTypeMismatch typ2 typ3
-    else Left $ IfCondNotBool typ1
+    else Left $ IfGuardNotBool typ1
 
 -- check that t1 can be applied to t2
 typecheckApplication :: Type -> Type -> Either TypingError Type
