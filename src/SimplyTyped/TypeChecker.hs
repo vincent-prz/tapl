@@ -29,8 +29,8 @@ typecheckWithContext ctx (App t1 t2) = do
   typ1 <- typecheckWithContext ctx t1
   typ2 <- typecheckWithContext ctx t2
   typecheckApplication typ1 typ2
-typecheckWithContext ctx ConstTrue = Right TBool
-typecheckWithContext ctx ConstFalse = Right TBool
+typecheckWithContext _ ConstTrue = Right TBool
+typecheckWithContext _ ConstFalse = Right TBool
 typecheckWithContext ctx (IfThenElse t1 t2 t3) = do
   typ1 <- typecheckWithContext ctx t1
   if typ1 == TBool

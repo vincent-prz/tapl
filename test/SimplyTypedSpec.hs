@@ -1,9 +1,13 @@
 module SimplyTypedSpec where
 
+import SimplyTyped.Evaluator
 import SimplyTyped.Lexer
 import SimplyTyped.Parser
 import SimplyTyped.TypeChecker
 import Test.Hspec
+
+parseThenEval :: String -> Either RuntimeError Term
+parseThenEval = evalTerm . fullParser
 
 spec :: Spec
 spec = do
@@ -77,3 +81,28 @@ spec = do
     it "failure when branches of if don't have the same type" $
       typecheck (fullParser "if false then true else \\x:Bool.x") `shouldBe`
       Left (IfBranchesTypeMismatch TBool (Arrow TBool TBool))
+  describe "Simply typed evaluation" $ do
+    it "identity" $
+      show <$> parseThenEval "\\x:Bool.x" `shouldBe` Right "\\x:Bool.x"
+    it "simple application" $
+      show <$>
+      parseThenEval "(\\f:Bool->Bool.f) $ \\x:Bool.x" `shouldBe`
+      Right "\\x:Bool.x"
+    it "const true" $ show <$> parseThenEval "true" `shouldBe` Right "true"
+    it "const false" $ show <$> parseThenEval "false" `shouldBe` Right "false"
+    it "identity applied to true" $
+      show <$> parseThenEval "(\\x:Bool.x) $ true" `shouldBe` Right "true"
+    it "if true .." $
+      show <$>
+      parseThenEval "if true then true else false" `shouldBe` Right "true"
+    it "if false .." $
+      show <$>
+      parseThenEval "if false then true else false" `shouldBe` Right "false"
+    it "if expr .." $
+      show <$>
+      parseThenEval "if (\\x:Bool.x) $ true then true else false" `shouldBe`
+      Right "true"
+    it "application of lambda with if" $
+      show <$>
+      parseThenEval "(\\x:Bool.if x then true else false) $ true" `shouldBe`
+      Right "true"
