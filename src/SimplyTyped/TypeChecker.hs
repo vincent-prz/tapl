@@ -13,6 +13,7 @@ data TypingError
   | IfGuardNotBool Type
   | IfBranchesTypeMismatch Type
                            Type
+  | UnboundVariable String -- approx: unbound var is a typing error
   deriving (Eq, Show)
 
 typecheck :: Term -> Either TypingError Type
@@ -21,7 +22,7 @@ typecheck = typecheckWithContext Map.empty
 typecheckWithContext :: TypeContext -> Term -> Either TypingError Type
 typecheckWithContext ctx (Var s) =
   case ctx Map.!? s of
-    Nothing -> error $ "typechecking error, unbound variable " ++ s
+    Nothing -> Left $ UnboundVariable s
     Just t -> Right t
 typecheckWithContext ctx (Abs s t b) =
   Arrow t <$> typecheckWithContext (Map.insert s t ctx) b

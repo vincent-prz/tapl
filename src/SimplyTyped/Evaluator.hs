@@ -3,11 +3,6 @@ module SimplyTyped.Evaluator where
 import qualified Data.Map as Map
 import SimplyTyped.Parser (Term(..))
 
-data RuntimeError
-  = ParsingError
-  | UnboundVariable String
-  deriving (Eq, Show)
-
 type Context = Map.Map String Term
 
 getFreeVars :: Term -> [String]
@@ -53,32 +48,13 @@ substitution _ _ ConstFalse = ConstFalse
 substitution x s (IfThenElse t1 t2 t3) =
   IfThenElse (substitution x s t1) (substitution x s t2) (substitution x s t3)
 
-checkVarsAreBound :: Context -> Term -> Either String ()
-checkVarsAreBound c = g (Map.keys c)
-  where
-    g :: [String] -> Term -> Either String ()
-    g boundVars (Var x)
-      | x `elem` boundVars = Right ()
-      | otherwise = Left x
-    g boundVars (App t1 t2) = g boundVars t1 >> g boundVars t2
-    g boundVars (Abs x _ t) = g (x : boundVars) t
-    g _ ConstTrue = Right ()
-    g _ ConstFalse = Right ()
-    g boundVars (IfThenElse t1 t2 t3) =
-      g boundVars t1 >> g boundVars t2 >> g boundVars t3
-
-evalTerm :: Term -> Either RuntimeError Term
+-- assumption: the input Term has been typechecked
+evalTerm :: Term -> Term
 evalTerm term =
-  case checkVarsAreBound Map.empty term of
-    Left x -> Left (UnboundVariable x)
-    Right _ -> Right (actualEval term)
-  where
-    actualEval :: Term -> Term
-    actualEval t =
-      let newTerm = eval1Step t
-       in if newTerm == t
-            then newTerm
-            else actualEval newTerm
+  let newTerm = eval1Step term
+   in if newTerm == term
+        then newTerm
+        else evalTerm newTerm
 
 isValue :: Term -> Bool
 isValue ConstTrue = True
@@ -96,9 +72,3 @@ eval1Step (IfThenElse ConstTrue t2 _) = t2
 eval1Step (IfThenElse ConstFalse _ t3) = t3
 eval1Step (IfThenElse t1 t2 t3) = IfThenElse (eval1Step t1) t2 t3
 eval1Step t = t
--- beta evaluation
---evalBeta1Step :: Term -> Term
---evalBeta1Step (App (Abs (Var x) t12) t2) = substitution x t2 t12
---evalBeta1Step (App t1 t2) = App (evalBeta1Step t1) (evalBeta1Step t2)
---evalBeta1Step (Abs (Var x) t) = Abs (Var x) (evalBeta1Step t)
---evalBeta1Step t = t

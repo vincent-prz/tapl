@@ -6,16 +6,16 @@ import SimplyTyped.Parser
 import SimplyTyped.TypeChecker
 import Test.Hspec
 
-parseThenEval :: String -> Either RuntimeError Term
+parseThenEval :: String -> Term
 parseThenEval s =
   case fullParser s of
-    Left err -> error "parse error"
+    Left err -> error err
     Right term -> evalTerm term
 
 parseThenTypeCheck :: String -> Either TypingError Type
 parseThenTypeCheck s =
   case fullParser s of
-    Left err -> error "parse error"
+    Left err -> error err
     Right term -> typecheck term
 
 spec :: Spec
@@ -94,28 +94,24 @@ spec = do
     it "failure when branches of if don't have the same type" $
       parseThenTypeCheck "if false then true else \\x:Bool.x" `shouldBe`
       Left (IfBranchesTypeMismatch TBool (Arrow TBool TBool))
+    it "failure when unbound variable" $
+      parseThenTypeCheck "\\x:Bool.y" `shouldBe` Left (UnboundVariable "y")
   describe "Simply typed evaluation" $ do
-    it "identity" $
-      show <$> parseThenEval "\\x:Bool.x" `shouldBe` Right "\\x:Bool.x"
+    it "identity" $ show (parseThenEval "\\x:Bool.x") `shouldBe` "\\x:Bool.x"
     it "simple application" $
-      show <$>
-      parseThenEval "(\\f:Bool->Bool.f) $ \\x:Bool.x" `shouldBe`
-      Right "\\x:Bool.x"
-    it "const true" $ show <$> parseThenEval "true" `shouldBe` Right "true"
-    it "const false" $ show <$> parseThenEval "false" `shouldBe` Right "false"
+      show (parseThenEval "(\\f:Bool->Bool.f) $ \\x:Bool.x") `shouldBe`
+      "\\x:Bool.x"
+    it "const true" $ show (parseThenEval "true") `shouldBe` "true"
+    it "const false" $ show (parseThenEval "false") `shouldBe` "false"
     it "identity applied to true" $
-      show <$> parseThenEval "(\\x:Bool.x) $ true" `shouldBe` Right "true"
+      show (parseThenEval "(\\x:Bool.x) $ true") `shouldBe` "true"
     it "if true .." $
-      show <$>
-      parseThenEval "if true then true else false" `shouldBe` Right "true"
+      show (parseThenEval "if true then true else false") `shouldBe` "true"
     it "if false .." $
-      show <$>
-      parseThenEval "if false then true else false" `shouldBe` Right "false"
+      show (parseThenEval "if false then true else false") `shouldBe` "false"
     it "if expr .." $
-      show <$>
-      parseThenEval "if (\\x:Bool.x) $ true then true else false" `shouldBe`
-      Right "true"
+      show (parseThenEval "if (\\x:Bool.x) $ true then true else false") `shouldBe`
+      "true"
     it "application of lambda with if" $
-      show <$>
-      parseThenEval "(\\x:Bool.if x then true else false) $ true" `shouldBe`
-      Right "true"
+      show (parseThenEval "(\\x:Bool.if x then true else false) $ true") `shouldBe`
+      "true"
