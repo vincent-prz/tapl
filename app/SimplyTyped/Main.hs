@@ -1,19 +1,22 @@
 module Main where
 
-import Lib.Lib
 import SimplyTyped.Evaluator
 import SimplyTyped.Parser
 import SimplyTyped.TypeChecker
 import System.Console.Haskeline
 
--- TODO: deal with parsing errors
 processInput :: String -> String
 processInput input =
-  let term = fullParser input
-      tcheck = typecheck term
-   in case tcheck of
-        Left err -> show err
-        Right typ -> show (evalTerm term) ++ " : " ++ show typ
+  let parseResult = fullParser input
+   in case parseResult of
+        Left err -> err
+        Right term -> processTerm term
+
+processTerm :: Term -> String
+processTerm term =
+  case typecheck term of
+    Left err -> show err
+    Right typ -> show (evalTerm term) ++ " : " ++ show typ
 
 main :: IO ()
 main =

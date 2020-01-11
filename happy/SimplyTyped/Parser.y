@@ -5,6 +5,7 @@ import SimplyTyped.Lexer
 }
 %name parseTerm
 %tokentype { Token }
+%monad { Either String } { (>>=) } { return }
 %error { parseError }
 
 %token
@@ -33,9 +34,8 @@ Term    : var { Var $1 }
         | false { ConstFalse }
         | if Term then Term else Term { IfThenElse $2 $4 $6 }
 {
-parseError :: [Token] -> a
-parseError _ = error "Parse error"
-
+parseError :: [Token] -> Either String a
+parseError _ = Left "Parse Error"
 
 data Term
   = Var String
@@ -68,9 +68,9 @@ instance Show Term where
       showR ConstFalse = "false"
       showR t@IfThenElse {} = show t
 
-fullParser :: String -> Term
+fullParser :: String -> Either String Term
 fullParser s =
   case lexer s of
-    Left err -> error $ show err
+    Left err -> Left $ show err
     Right lexemes -> parseTerm lexemes
 }

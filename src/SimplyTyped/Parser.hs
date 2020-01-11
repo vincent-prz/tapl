@@ -227,38 +227,23 @@ happyNewToken action sts stk (tk:tks) =
 happyError_ explist 18 tk tks = happyError' (tks, explist)
 happyError_ explist _ tk tks = happyError' ((tk:tks), explist)
 
-newtype HappyIdentity a = HappyIdentity a
-happyIdentity = HappyIdentity
-happyRunIdentity (HappyIdentity a) = a
-
-instance Functor HappyIdentity where
-    fmap f (HappyIdentity a) = HappyIdentity (f a)
-
-instance Applicative HappyIdentity where
-    pure  = HappyIdentity
-    (<*>) = ap
-instance Monad HappyIdentity where
-    return = pure
-    (HappyIdentity p) >>= q = q p
-
-happyThen :: () => HappyIdentity a -> (a -> HappyIdentity b) -> HappyIdentity b
-happyThen = (>>=)
-happyReturn :: () => a -> HappyIdentity a
+happyThen :: () => Either String a -> (a -> Either String b) -> Either String b
+happyThen = ((>>=))
+happyReturn :: () => a -> Either String a
 happyReturn = (return)
-happyThen1 m k tks = (>>=) m (\a -> k a tks)
-happyReturn1 :: () => a -> b -> HappyIdentity a
+happyThen1 m k tks = ((>>=)) m (\a -> k a tks)
+happyReturn1 :: () => a -> b -> Either String a
 happyReturn1 = \a tks -> (return) a
-happyError' :: () => ([(Token)], [String]) -> HappyIdentity a
-happyError' = HappyIdentity . (\(tokens, _) -> parseError tokens)
-parseTerm tks = happyRunIdentity happySomeParser where
+happyError' :: () => ([(Token)], [String]) -> Either String a
+happyError' = (\(tokens, _) -> parseError tokens)
+parseTerm tks = happySomeParser where
  happySomeParser = happyThen (happyParse action_0 tks) (\x -> case x of {HappyAbsSyn4 z -> happyReturn z; _other -> notHappyAtAll })
 
 happySeq = happyDontSeq
 
 
-parseError :: [Token] -> a
-parseError _ = error "Parse error"
-
+parseError :: [Token] -> Either String a
+parseError _ = Left "Parse Error"
 
 data Term
   = Var String
@@ -291,10 +276,10 @@ instance Show Term where
       showR ConstFalse = "false"
       showR t@IfThenElse {} = show t
 
-fullParser :: String -> Term
+fullParser :: String -> Either String Term
 fullParser s =
   case lexer s of
-    Left err -> error $ show err
+    Left err -> Left $ show err
     Right lexemes -> parseTerm lexemes
 {-# LINE 1 "templates/GenericTemplate.hs" #-}
 {-# LINE 1 "templates/GenericTemplate.hs" #-}
