@@ -12,6 +12,8 @@ import SimplyTyped.Lexer
         var { TOK_VAR $$ }        
         true { TOK_TRUE }
         false { TOK_FALSE }
+        '0' { TOK_ZERO }
+        succ { TOK_SUCC }
         lambda { TOK_LAMBDA }        
         '.' { TOK_DOT }        
         '$' { TOK_DOLLAR }
@@ -35,6 +37,8 @@ Term    : var { Var $1 }
         | true { ConstTrue }
         | false { ConstFalse }
         | if Term then Term else Term { IfThenElse $2 $4 $6 }
+        | '0' { ConstZero }
+        | succ Term { Succ $2 }
 {
 parseError :: [Token] -> Either String a
 parseError _ = Left "Parse Error"
@@ -46,6 +50,8 @@ data Term
   | ConstTrue
   | ConstFalse
   | IfThenElse Term Term Term
+  | ConstZero
+  | Succ Term
   deriving (Eq)
 
 instance Show Term where
@@ -55,6 +61,9 @@ instance Show Term where
   show ConstFalse = "false"
   show (IfThenElse t1 t2 t3) =
     "if " ++ show t1 ++ " then " ++ show t2 ++ " else " ++ show t3
+  show ConstZero = "0"
+  show (Succ t@ConstZero) = "succ " ++ show t
+  show (Succ t) = "succ (" ++ show t ++ ")"
   show (App t1 t2) = showL t1 ++ " $ " ++ showR t2
     where
       showL (Var s) = s
@@ -63,12 +72,16 @@ instance Show Term where
       showL ConstTrue = "true"
       showL ConstFalse = "false"
       showL t@IfThenElse {} = "(" ++ show t ++ ")"
+      showL ConstZero = "0"
+      showL t@Succ {} = "(" ++ show t ++ ")"
       showR (Var s) = s
       showR t@Abs {} = show t
       showR t@(App _ _) = "(" ++ show t ++ ")"
       showR ConstTrue = "true"
       showR ConstFalse = "false"
       showR t@IfThenElse {} = show t
+      showR t@Succ {} = show t
+      showR ConstZero = "0"
 
 fullParser :: String -> Either String Term
 fullParser s =

@@ -42,6 +42,12 @@ typecheckWithContext ctx (IfThenElse t1 t2 t3) = do
         then return typ2
         else Left $ IfBranchesTypeMismatch typ2 typ3
     else Left $ IfGuardNotBool typ1
+typecheckWithContext _ ConstZero = Right TNat
+typecheckWithContext ctx (Succ t) = do
+  typ <- typecheckWithContext ctx t
+  if typ == TNat
+    then return TNat
+    else Left $ ArgMisMatch {expected = TNat, got = typ}
 
 -- check that t1 can be applied to t2
 typecheckApplication :: Type -> Type -> Either TypingError Type

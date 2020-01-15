@@ -53,6 +53,10 @@ spec = do
       show <$>
       fullParser "if true then true else (\\x:Bool.x) $ true" `shouldBe`
       Right "if true then true else (\\x:Bool.x) $ true"
+    it "0" $ show <$> fullParser "0" `shouldBe` Right "0"
+    it "succ 0" $ show <$> fullParser "succ 0" `shouldBe` Right "succ 0"
+    it "succ (succ 0)" $
+      show <$> fullParser "succ (succ 0)" `shouldBe` Right "succ (succ 0)"
   describe "Simply typed typechecking" $ do
     it "true" $ show <$> parseThenTypeCheck "true" `shouldBe` Right "Bool"
     it "false" $ show <$> parseThenTypeCheck "false" `shouldBe` Right "Bool"
@@ -101,6 +105,16 @@ spec = do
       Left (IfBranchesTypeMismatch TBool (Arrow TBool TBool))
     it "failure when unbound variable" $
       parseThenTypeCheck "\\x:Bool.y" `shouldBe` Left (UnboundVariable "y")
+    it "0" $ show <$> parseThenTypeCheck "0" `shouldBe` Right "Nat"
+    it "succ 0" $ show <$> parseThenTypeCheck "succ 0" `shouldBe` Right "Nat"
+    it "lambda succ" $
+      show <$> parseThenTypeCheck "\\x:Nat.succ x" `shouldBe` Right "Nat->Nat"
+    it "failure when succ true" $
+      parseThenTypeCheck "succ true" `shouldBe`
+      Left (ArgMisMatch {expected = TNat, got = TBool})
+    it "failure when lambda succ with wrong input type" $
+      parseThenTypeCheck "\\x:Bool.succ x" `shouldBe`
+      Left (ArgMisMatch {expected = TNat, got = TBool})
   describe "Simply typed evaluation" $ do
     it "identity" $ show (parseThenEval "\\x:Bool.x") `shouldBe` "\\x:Bool.x"
     it "simple application" $
@@ -120,3 +134,11 @@ spec = do
     it "application of lambda with if" $
       show (parseThenEval "(\\x:Bool.if x then true else false) $ true") `shouldBe`
       "true"
+    it "const 0" $ show (parseThenEval "0") `shouldBe` "0"
+    it "succ 0" $ show (parseThenEval "succ 0") `shouldBe` "succ 0"
+    it "lambda ConstZero applied to 0" $
+      show (parseThenEval "(\\x:Nat.0) $ 0") `shouldBe` "0"
+    it "lambda succ applied to 0" $
+      show (parseThenEval "(\\x:Nat.succ x) $ 0") `shouldBe` "succ 0"
+    it "lambda ConstZero applied to succ 0" $
+      show (parseThenEval "(\\x:Nat.0) $ (succ 0)") `shouldBe` "0"

@@ -3,15 +3,18 @@ module SimplyTyped.Lexer where
 import Data.Functor
 import Text.ParserCombinators.Parsec
 
+-- FIXME: ambiguity in succ succ t
 -- TODO: put this and `Term` in a separate file.
 data Type
   = TBool
+  | TNat
   | Arrow Type
           Type
   deriving (Eq)
 
 instance Show Type where
   show TBool = "Bool"
+  show TNat = "Nat"
   show (Arrow t1 t2) = showL t1 ++ "->" ++ show t2
     where
       showL arr@(Arrow _ _) = "(" ++ show arr ++ ")"
@@ -21,6 +24,8 @@ data Token
   = TOK_VAR String
   | TOK_TRUE
   | TOK_FALSE
+  | TOK_ZERO
+  | TOK_SUCC
   | TOK_LAMBDA
   | TOK_DOT
   | TOK_DOLLAR
@@ -37,7 +42,7 @@ parseVariable :: Parser Token
 parseVariable = TOK_VAR <$> ((:) <$> lower <*> many alphaNum)
 
 parseSingleType :: Parser Type
-parseSingleType = string "Bool" $> TBool
+parseSingleType = string "Bool" $> TBool <|> string "Nat" $> TNat
 
 parseArrowType :: Parser Type
 parseArrowType =
@@ -58,6 +63,8 @@ parseToken =
     , try $ string "if" $> TOK_IF
     , try $ string "then" $> TOK_THEN
     , try $ string "else" $> TOK_ELSE
+    , try $ char '0' $> TOK_ZERO
+    , try $ string "succ" $> TOK_SUCC
     , try parseVariable
     , try parseType
     , try $ char '$' $> TOK_DOLLAR
