@@ -15,7 +15,7 @@ data HappyAbsSyn t4
 	| HappyAbsSyn4 t4
 
 happyExpList :: Happy_Data_Array.Array Int Int
-happyExpList = Happy_Data_Array.listArray (0,47) ([21488,256,0,0,128,0,0,0,0,1343,16,16128,61445,83,2176,10240,0,32,0,1343,0,0,64,0,1343,2048,16385,61440,83,1343,2048,32768,0,0
+happyExpList = Happy_Data_Array.listArray (0,47) ([21488,256,0,0,128,0,0,0,0,1343,16,16128,61445,83,2176,10240,0,32,8,1343,0,0,64,0,1343,2048,16385,61440,83,1343,2048,32768,0,0
 	])
 
 {-# NOINLINE happyExpListPerState #-}

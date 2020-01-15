@@ -27,6 +27,7 @@ import SimplyTyped.Lexer
 
 %nonassoc '.'
 %nonassoc else
+%nonassoc succ
 %left '$'
 %%
 

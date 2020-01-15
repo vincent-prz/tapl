@@ -142,3 +142,5 @@ spec = do
       show (parseThenEval "(\\x:Nat.succ x) $ 0") `shouldBe` "succ 0"
     it "lambda ConstZero applied to succ 0" $
       show (parseThenEval "(\\x:Nat.0) $ (succ 0)") `shouldBe` "0"
+    it "succ of application" $
+      show (parseThenEval "succ (\\x:Nat.x) $ 0") `shouldBe` "succ 0"

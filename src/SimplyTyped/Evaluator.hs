@@ -47,7 +47,7 @@ substitution _ _ ConstTrue = ConstTrue
 substitution _ _ ConstFalse = ConstFalse
 substitution x s (IfThenElse t1 t2 t3) =
   IfThenElse (substitution x s t1) (substitution x s t2) (substitution x s t3)
-substitution x s ConstZero = ConstZero
+substitution _ _ ConstZero = ConstZero
 substitution x s (Succ t) = Succ (substitution x s t)
 
 -- assumption: the input Term has been typechecked
@@ -65,7 +65,7 @@ isBoolValue _ = False
 
 isNatValue :: Term -> Bool
 isNatValue ConstZero = True
-isNatValue (Succ _) = True -- change this when introducing pred
+isNatValue (Succ t) = isNatValue t
 isNatValue _ = False
 
 isValue :: Term -> Bool
@@ -81,4 +81,5 @@ eval1Step (App t1 t2) = App (eval1Step t1) t2
 eval1Step (IfThenElse ConstTrue t2 _) = t2
 eval1Step (IfThenElse ConstFalse _ t3) = t3
 eval1Step (IfThenElse t1 t2 t3) = IfThenElse (eval1Step t1) t2 t3
+eval1Step (Succ t) = Succ (eval1Step t) -- TODO check this in the book
 eval1Step t = t
