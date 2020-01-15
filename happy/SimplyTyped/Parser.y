@@ -23,6 +23,7 @@ import SimplyTyped.Lexer
         ':' { TOK_COLON }        
         type { TOK_TYPE $$ }        
 
+%nonassoc else
 %left '$'
 %%
 

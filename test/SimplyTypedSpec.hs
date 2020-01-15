@@ -48,6 +48,11 @@ spec = do
       show <$>
       fullParser "(if x then y else z) $ f" `shouldBe`
       Right "(if x then y else z) $ f"
+    -- check that application binds more tightly than else
+    it "application in else branch" $
+      show <$>
+      fullParser "if true then true else (\\x:Bool.x) $ true" `shouldBe`
+      Right "if true then true else (\\x:Bool.x) $ true"
   describe "Simply typed typechecking" $ do
     it "true" $ show <$> parseThenTypeCheck "true" `shouldBe` Right "Bool"
     it "false" $ show <$> parseThenTypeCheck "false" `shouldBe` Right "Bool"
