@@ -56,7 +56,7 @@ spec = do
     it "0" $ show <$> fullParser "0" `shouldBe` Right "0"
     it "succ 0" $ show <$> fullParser "succ 0" `shouldBe` Right "succ 0"
     it "succ (succ 0)" $
-      show <$> fullParser "succ (succ 0)" `shouldBe` Right "succ (succ 0)"
+      show <$> fullParser "succ (succ 0)" `shouldBe` Right "succ succ 0"
   describe "Simply typed typechecking" $ do
     it "true" $ show <$> parseThenTypeCheck "true" `shouldBe` Right "Bool"
     it "false" $ show <$> parseThenTypeCheck "false" `shouldBe` Right "Bool"
@@ -115,6 +115,12 @@ spec = do
     it "failure when lambda succ with wrong input type" $
       parseThenTypeCheck "\\x:Bool.succ x" `shouldBe`
       Left (ArgMisMatch {expected = TNat, got = TBool})
+    it "pred 0" $ show <$> parseThenTypeCheck "pred 0" `shouldBe` Right "Nat"
+    it "pred succ 0" $
+      show <$> parseThenTypeCheck "pred succ 0" `shouldBe` Right "Nat"
+    it "failure when pred true" $
+      parseThenTypeCheck "pred true" `shouldBe`
+      Left (ArgMisMatch {expected = TNat, got = TBool})
   describe "Simply typed evaluation" $ do
     it "identity" $ show (parseThenEval "\\x:Bool.x") `shouldBe` "\\x:Bool.x"
     it "simple application" $
@@ -144,3 +150,9 @@ spec = do
       show (parseThenEval "(\\x:Nat.0) $ (succ 0)") `shouldBe` "0"
     it "succ of application" $
       show (parseThenEval "succ (\\x:Nat.x) $ 0") `shouldBe` "succ 0"
+    it "pred 0" $ show (parseThenEval "pred 0") `shouldBe` "0"
+    it "pred succ 0" $ show (parseThenEval "pred succ 0") `shouldBe` "0"
+    it "lambda pred" $
+      show (parseThenEval "\\x:Nat.pred x") `shouldBe` "\\x:Nat.pred x"
+    it "lambda pred applied to 0" $
+      show (parseThenEval "(\\x:Nat.pred x) $ 0") `shouldBe` "0"

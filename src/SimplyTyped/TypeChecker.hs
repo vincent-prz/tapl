@@ -48,6 +48,11 @@ typecheckWithContext ctx (Succ t) = do
   if typ == TNat
     then return TNat
     else Left $ ArgMisMatch {expected = TNat, got = typ}
+typecheckWithContext ctx (Pred t) = do
+  typ <- typecheckWithContext ctx t
+  if typ == TNat
+    then return TNat
+    else Left $ ArgMisMatch {expected = TNat, got = typ}
 
 -- check that t1 can be applied to t2
 typecheckApplication :: Type -> Type -> Either TypingError Type
