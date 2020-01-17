@@ -43,16 +43,16 @@ typecheckWithContext ctx (IfThenElse t1 t2 t3) = do
         else Left $ IfBranchesTypeMismatch typ2 typ3
     else Left $ IfGuardNotBool typ1
 typecheckWithContext _ ConstZero = Right TNat
-typecheckWithContext ctx (Succ t) = do
+typecheckWithContext ctx (Succ t) = typecheckTerm ctx t TNat TNat
+typecheckWithContext ctx (Pred t) = typecheckTerm ctx t TNat TNat
+typecheckWithContext ctx (IsZero t) = typecheckTerm ctx t TNat TBool
+
+typecheckTerm :: TypeContext -> Term -> Type -> Type -> Either TypingError Type
+typecheckTerm ctx t expected output = do
   typ <- typecheckWithContext ctx t
-  if typ == TNat
-    then return TNat
-    else Left $ ArgMisMatch {expected = TNat, got = typ}
-typecheckWithContext ctx (Pred t) = do
-  typ <- typecheckWithContext ctx t
-  if typ == TNat
-    then return TNat
-    else Left $ ArgMisMatch {expected = TNat, got = typ}
+  if typ == expected
+    then return output
+    else Left $ ArgMisMatch {expected = expected, got = typ}
 
 -- check that t1 can be applied to t2
 typecheckApplication :: Type -> Type -> Either TypingError Type

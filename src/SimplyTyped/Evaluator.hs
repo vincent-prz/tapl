@@ -50,6 +50,7 @@ substitution x s (IfThenElse t1 t2 t3) =
 substitution _ _ ConstZero = ConstZero
 substitution x s (Succ t) = Succ (substitution x s t)
 substitution x s (Pred t) = Pred (substitution x s t)
+substitution x s (IsZero t) = IsZero (substitution x s t)
 
 -- assumption: the input Term has been typechecked
 evalTerm :: Term -> Term
@@ -85,4 +86,7 @@ eval1Step (IfThenElse t1 t2 t3) = IfThenElse (eval1Step t1) t2 t3
 eval1Step (Succ t) = Succ (eval1Step t)
 eval1Step (Pred ConstZero) = ConstZero
 eval1Step (Pred (Succ t)) = eval1Step t
+eval1Step (IsZero ConstZero) = ConstTrue
+eval1Step (IsZero (Succ _)) = ConstFalse
+eval1Step (IsZero t) = IsZero (eval1Step t)
 eval1Step t = t

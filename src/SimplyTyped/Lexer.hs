@@ -27,6 +27,7 @@ data Token
   | TOK_ZERO
   | TOK_SUCC
   | TOK_PRED
+  | TOK_ISZERO
   | TOK_LAMBDA
   | TOK_DOT
   | TOK_DOLLAR
@@ -67,6 +68,7 @@ parseToken =
     , try $ char '0' $> TOK_ZERO
     , try $ string "succ" $> TOK_SUCC
     , try $ string "pred" $> TOK_PRED
+    , try $ string "iszero" $> TOK_ISZERO
     , try parseVariable
     , try parseType
     , try $ char '$' $> TOK_DOLLAR

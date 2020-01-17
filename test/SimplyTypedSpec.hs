@@ -121,6 +121,13 @@ spec = do
     it "failure when pred true" $
       parseThenTypeCheck "pred true" `shouldBe`
       Left (ArgMisMatch {expected = TNat, got = TBool})
+    it "iszero 0" $
+      show <$> parseThenTypeCheck "iszero 0" `shouldBe` Right "Bool"
+    it "iszero succ 0" $
+      show <$> parseThenTypeCheck "iszero 0" `shouldBe` Right "Bool"
+    it "failure when iszero true" $
+      parseThenTypeCheck "iszero true" `shouldBe`
+      Left (ArgMisMatch {expected = TNat, got = TBool})
   describe "Simply typed evaluation" $ do
     it "identity" $ show (parseThenEval "\\x:Bool.x") `shouldBe` "\\x:Bool.x"
     it "simple application" $
@@ -156,3 +163,11 @@ spec = do
       show (parseThenEval "\\x:Nat.pred x") `shouldBe` "\\x:Nat.pred x"
     it "lambda pred applied to 0" $
       show (parseThenEval "(\\x:Nat.pred x) $ 0") `shouldBe` "0"
+    it "iszero 0" $ show (parseThenEval "iszero 0") `shouldBe` "true"
+    it "iszero succ 0" $ show (parseThenEval "iszero succ 0") `shouldBe` "false"
+    it "lambda iszero" $
+      show (parseThenEval "\\x:Nat.iszero x") `shouldBe` "\\x:Nat.iszero x"
+    it "lambda iszero applied to 0" $
+      show (parseThenEval "(\\x:Nat.iszero x) $ 0") `shouldBe` "true"
+    it "iszero pred succ 0" $
+      show (parseThenEval "iszero pred succ 0") `shouldBe` "true"
