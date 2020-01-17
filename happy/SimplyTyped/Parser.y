@@ -79,23 +79,13 @@ instance Show Term where
       showL (Var s) = s
       showL t@Abs {} = "(" ++ show t ++ ")"
       showL t@(App _ _) = show t
-      showL ConstTrue = "true"
-      showL ConstFalse = "false"
       showL t@IfThenElse {} = "(" ++ show t ++ ")"
-      showL ConstZero = "0"
       showL t@Succ {} = "(" ++ show t ++ ")"
       showL t@Pred {} = "(" ++ show t ++ ")"
       showL t@IsZero {} = "(" ++ show t ++ ")"
-      showR (Var s) = s
-      showR t@Abs {} = show t
+      showL t = show t
       showR t@(App _ _) = "(" ++ show t ++ ")"
-      showR ConstTrue = "true"
-      showR ConstFalse = "false"
-      showR t@IfThenElse {} = show t
-      showR ConstZero = "0"
-      showR t@Succ {} = show t
-      showR t@Pred {} = show t
-      showR t@IsZero {} = show t
+      showR t = show t
 
 fullParser :: String -> Either String Term
 fullParser s =
