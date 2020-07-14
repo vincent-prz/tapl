@@ -28,11 +28,25 @@ library:
   - parsec
   - containers
   - mtl
+  - array
 
 executables:
-  tapl-exe:
+  untyped:
     main:                Main.hs
-    source-dirs:         app
+    source-dirs:         app/Untyped
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    - -Wall
+    dependencies:
+    - tapl
+    - haskeline
+    - containers
+    - mtl
+  simply-typed:
+    main:                Main.hs
+    source-dirs:         app/SimplyTyped
     ghc-options:
     - -threaded
     - -rtsopts
@@ -52,6 +66,7 @@ tests:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+    - -Wall
     dependencies:
     - tapl
     - hspec
