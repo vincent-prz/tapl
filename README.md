@@ -4,15 +4,23 @@ Haskell implementation of the lambda calculi covered in the [Types and Programmi
 
 A web REPL / tutorial based on this is available [here](https://vincent-prz.github.io/lambda-calculus-repl/). In case you wonder, the code for this can be found in the [browser branch](https://github.com/vincent-prz/tapl/tree/browser).
 
+As of today, 2 variants of lambda calculus are covered: the regular untyped lambda calculus, and the simply typed lambda calculus.
+
 # How to run it
 
-The following command will fire a lambda calculus REPL.
+The following command will fire an untyped lambda calculus REPL.
 
 ```
-stack run
+stack run untyped
 ```
 
-# Examples
+The following command will fire a simply typed lambda calculus REPL.
+
+```
+stack run typed
+```
+
+# Examples: untyped lambda calculus
 
 ```ml
 > \x.x
@@ -27,7 +35,22 @@ stack run
 \t.\f.t
 ```
 
-# Options
+# Examples: simply typed lambda calculus
+
+Note: to avoid grammar ambiguity problems, the application is done via the `$` operator.
+
+```ml
+> \x : Bool.true
+\x:Bool.true : Bool->Bool
+> \x : Nat.succ x
+\x:Nat.succ x : Nat->Nat
+> (\x : Bool. if x then 0 else succ 0) $ false
+succ 0 : Nat
+> (\x : Bool. if x then 0 else succ 0) $ 0
+ArgMisMatch {expected = Bool, got = Nat}
+```
+
+# Options (Untyped only)
 
 2 evaluations strategies are supported: call by value and full beta reduction. The main difference is that the latter will reduce the expressions fully, while call by value will not reduce anything inside abstractions.
 
@@ -60,7 +83,16 @@ Disabling verbose mode.
 
 # Status
 
+## Language features
  - [x] Untyped lambda calculus
+ - [x] Simply typed lambda calculus
+ - [ ] Simple extensions (Let bindings, records, sum types ...)
+ - [ ] Subtyping
+ - [ ] Recursive types
+ - [ ] Polymorphism
+ - [ ] Higher-Order systems
+
+## Project features
  - [X] A CLI REPL
  - [X] A web REPL
  - [X] 2 evaluation strategies supported: Call by value and full beta reduction
