@@ -46,6 +46,7 @@ typecheckWithContext _ ConstZero = Right TNat
 typecheckWithContext ctx (Succ t) = typecheckTerm ctx t TNat TNat
 typecheckWithContext ctx (Pred t) = typecheckTerm ctx t TNat TNat
 typecheckWithContext ctx (IsZero t) = typecheckTerm ctx t TNat TBool
+typecheckWithContext _ ConstUnit = Right TUnit
 
 typecheckTerm :: TypeContext -> Term -> Type -> Type -> Either TypingError Type
 typecheckTerm ctx t expected output = do
