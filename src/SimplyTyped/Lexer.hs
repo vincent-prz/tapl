@@ -47,7 +47,8 @@ parseVariable :: Parser Token
 parseVariable = TOK_VAR <$> ((:) <$> lower <*> many alphaNum)
 
 parseSingleType :: Parser Type
-parseSingleType = string "Bool" $> TBool <|> string "Nat" $> TNat <|> string "Unit" $> TUnit
+parseSingleType =
+  string "Bool" $> TBool <|> string "Nat" $> TNat <|> string "Unit" $> TUnit
 
 parseArrowType :: Parser Type
 parseArrowType =
