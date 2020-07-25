@@ -1,24 +1,24 @@
 module SimplyTyped.Evaluator where
 
 import qualified Data.Map as Map
-import SimplyTyped.Parser (Term(..))
+import SimplyTyped.Definitions (CoreTerm(..))
 
-type Context = Map.Map String Term
+type Context = Map.Map String CoreTerm
 
-getFreeVars :: Term -> [String]
+getFreeVars :: CoreTerm -> [String]
 getFreeVars = g []
   where
-    g :: [String] -> Term -> [String]
-    g boundVars (Var s)
+    g :: [String] -> CoreTerm -> [String]
+    g boundVars (CoVar s)
       | s `elem` boundVars = []
       | otherwise = [s]
-    g boundVars (App t1 t2) = g boundVars t1 ++ g boundVars t2
-    g boundVars (Abs s _ t) = g (s : boundVars) t
-    g _ ConstTrue = []
-    g _ ConstFalse = []
-    g _ ConstZero = []
-    g _ ConstUnit = []
-    g boundVars (IfThenElse t1 t2 t3) =
+    g boundVars (CoApp t1 t2) = g boundVars t1 ++ g boundVars t2
+    g boundVars (CoAbs s _ t) = g (s : boundVars) t
+    g _ CoConstTrue = []
+    g _ CoConstFalse = []
+    g _ CoConstZero = []
+    g _ CoConstUnit = []
+    g boundVars (CoIfThenElse t1 t2 t3) =
       g boundVars t1 ++ g boundVars t2 ++ g boundVars t3
 
 pickFreshName :: String -> [String] -> String
@@ -31,66 +31,67 @@ pickFreshName s l = g 1 s l
       | name ++ show n `elem` existingNames = g (n + 1) name existingNames
       | otherwise = name ++ show n
 
-substitution :: String -> Term -> Term -> Term
-substitution x s (Var y)
+substitution :: String -> CoreTerm -> CoreTerm -> CoreTerm
+substitution x s (CoVar y)
   | x == y = s
-  | otherwise = Var y
-substitution x s (App t1 t2) = App (substitution x s t1) (substitution x s t2)
-substitution x _ t@(Abs y _ _)
+  | otherwise = CoVar y
+substitution x s (CoApp t1 t2) =
+  CoApp (substitution x s t1) (substitution x s t2)
+substitution x _ t@(CoAbs y _ _)
   | x == y = t
-substitution x s (Abs y typ t1) =
+substitution x s (CoAbs y typ t1) =
   let fv = getFreeVars s
    in if y `notElem` fv
-        then Abs y typ (substitution x s t1)
+        then CoAbs y typ (substitution x s t1)
         else let freshName = pickFreshName y fv
-                 t1' = substitution y (Var freshName) t1
-              in Abs freshName typ (substitution x s t1')
-substitution _ _ ConstTrue = ConstTrue
-substitution _ _ ConstFalse = ConstFalse
-substitution x s (IfThenElse t1 t2 t3) =
-  IfThenElse (substitution x s t1) (substitution x s t2) (substitution x s t3)
-substitution _ _ ConstZero = ConstZero
-substitution x s (Succ t) = Succ (substitution x s t)
-substitution x s (Pred t) = Pred (substitution x s t)
-substitution x s (IsZero t) = IsZero (substitution x s t)
-substitution _ _ ConstUnit = ConstUnit
+                 t1' = substitution y (CoVar freshName) t1
+              in CoAbs freshName typ (substitution x s t1')
+substitution _ _ CoConstTrue = CoConstTrue
+substitution _ _ CoConstFalse = CoConstFalse
+substitution x s (CoIfThenElse t1 t2 t3) =
+  CoIfThenElse (substitution x s t1) (substitution x s t2) (substitution x s t3)
+substitution _ _ CoConstZero = CoConstZero
+substitution x s (CoSucc t) = CoSucc (substitution x s t)
+substitution x s (CoPred t) = CoPred (substitution x s t)
+substitution x s (CoIsZero t) = CoIsZero (substitution x s t)
+substitution _ _ CoConstUnit = CoConstUnit
 
--- assumption: the input Term has been typechecked
-evalTerm :: Term -> Term
+-- assumption: the input CoreTerm has been typechecked
+evalTerm :: CoreTerm -> CoreTerm
 evalTerm term =
   let newTerm = eval1Step term
    in if newTerm == term
         then newTerm
         else evalTerm newTerm
 
-isBoolValue :: Term -> Bool
-isBoolValue ConstTrue = True
-isBoolValue ConstFalse = True
+isBoolValue :: CoreTerm -> Bool
+isBoolValue CoConstTrue = True
+isBoolValue CoConstFalse = True
 isBoolValue _ = False
 
-isNatValue :: Term -> Bool
-isNatValue ConstZero = True
-isNatValue (Succ t) = isNatValue t
+isNatValue :: CoreTerm -> Bool
+isNatValue CoConstZero = True
+isNatValue (CoSucc t) = isNatValue t
 isNatValue _ = False
 
-isValue :: Term -> Bool
-isValue Abs {} = True
-isValue ConstUnit = True
+isValue :: CoreTerm -> Bool
+isValue CoAbs {} = True
+isValue CoConstUnit = True
 isValue t = isBoolValue t || isNatValue t
 
 -- call by value
-eval1Step :: Term -> Term
-eval1Step (App (Abs x _ t12) v2)
+eval1Step :: CoreTerm -> CoreTerm
+eval1Step (CoApp (CoAbs x _ t12) v2)
   | isValue v2 = substitution x v2 t12
-eval1Step (App v1@Abs {} t2) = App v1 (eval1Step t2)
-eval1Step (App t1 t2) = App (eval1Step t1) t2
-eval1Step (IfThenElse ConstTrue t2 _) = t2
-eval1Step (IfThenElse ConstFalse _ t3) = t3
-eval1Step (IfThenElse t1 t2 t3) = IfThenElse (eval1Step t1) t2 t3
-eval1Step (Succ t) = Succ (eval1Step t)
-eval1Step (Pred ConstZero) = ConstZero
-eval1Step (Pred (Succ t)) = eval1Step t
-eval1Step (IsZero ConstZero) = ConstTrue
-eval1Step (IsZero (Succ _)) = ConstFalse
-eval1Step (IsZero t) = IsZero (eval1Step t)
+eval1Step (CoApp v1@CoAbs {} t2) = CoApp v1 (eval1Step t2)
+eval1Step (CoApp t1 t2) = CoApp (eval1Step t1) t2
+eval1Step (CoIfThenElse CoConstTrue t2 _) = t2
+eval1Step (CoIfThenElse CoConstFalse _ t3) = t3
+eval1Step (CoIfThenElse t1 t2 t3) = CoIfThenElse (eval1Step t1) t2 t3
+eval1Step (CoSucc t) = CoSucc (eval1Step t)
+eval1Step (CoPred CoConstZero) = CoConstZero
+eval1Step (CoPred (CoSucc t)) = eval1Step t
+eval1Step (CoIsZero CoConstZero) = CoConstTrue
+eval1Step (CoIsZero (CoSucc _)) = CoConstFalse
+eval1Step (CoIsZero t) = CoIsZero (eval1Step t)
 eval1Step t = t
