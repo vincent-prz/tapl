@@ -16,6 +16,8 @@ getFreeVars = g []
     g boundVars (Abs s _ t) = g (s : boundVars) t
     g _ ConstTrue = []
     g _ ConstFalse = []
+    g _ ConstZero = []
+    g _ ConstUnit = []
     g boundVars (IfThenElse t1 t2 t3) =
       g boundVars t1 ++ g boundVars t2 ++ g boundVars t3
 
@@ -51,6 +53,7 @@ substitution _ _ ConstZero = ConstZero
 substitution x s (Succ t) = Succ (substitution x s t)
 substitution x s (Pred t) = Pred (substitution x s t)
 substitution x s (IsZero t) = IsZero (substitution x s t)
+substitution _ _ ConstUnit = ConstUnit
 
 -- assumption: the input Term has been typechecked
 evalTerm :: Term -> Term
@@ -72,6 +75,7 @@ isNatValue _ = False
 
 isValue :: Term -> Bool
 isValue Abs {} = True
+isValue ConstUnit = True
 isValue t = isBoolValue t || isNatValue t
 
 -- call by value

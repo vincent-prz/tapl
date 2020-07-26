@@ -10,6 +10,7 @@ data Type
   | TNat
   | Arrow Type
           Type
+  | TUnit
   deriving (Eq)
 
 instance Show Type where
@@ -19,6 +20,7 @@ instance Show Type where
     where
       showL arr@(Arrow _ _) = "(" ++ show arr ++ ")"
       showL t = show t
+  show TUnit = "Unit"
 
 data Token
   = TOK_VAR String
@@ -38,13 +40,15 @@ data Token
   | TOK_ELSE
   | TOK_COLON
   | TOK_TYPE Type
+  | TOK_SEMICOLON
   deriving (Eq, Show)
 
 parseVariable :: Parser Token
 parseVariable = TOK_VAR <$> ((:) <$> lower <*> many alphaNum)
 
 parseSingleType :: Parser Type
-parseSingleType = string "Bool" $> TBool <|> string "Nat" $> TNat
+parseSingleType =
+  string "Bool" $> TBool <|> string "Nat" $> TNat <|> string "Unit" $> TUnit
 
 parseArrowType :: Parser Type
 parseArrowType =
@@ -80,6 +84,7 @@ parseToken =
     , try $ string "then" $> TOK_THEN
     , try $ string "else" $> TOK_ELSE
     , try $ char ':' $> TOK_COLON
+    , try $ char ';' $> TOK_SEMICOLON
     ]
 
 parseTokens :: Parser [Token]

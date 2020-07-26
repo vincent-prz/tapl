@@ -3,29 +3,30 @@ module SimplyTyped.Parser where
 
 import SimplyTyped.Lexer
 }
-%name parseTerm
+%name parseTerms
 %tokentype { Token }
 %monad { Either String } { (>>=) } { return }
 %error { parseError }
 
 %token
-        var { TOK_VAR $$ }        
+        var { TOK_VAR $$ }
         true { TOK_TRUE }
         false { TOK_FALSE }
         '0' { TOK_ZERO }
         succ { TOK_SUCC }
         pred { TOK_PRED }
         iszero { TOK_ISZERO }
-        lambda { TOK_LAMBDA }        
-        '.' { TOK_DOT }        
+        lambda { TOK_LAMBDA }
+        '.' { TOK_DOT }
         '$' { TOK_DOLLAR }
-        '(' { TOK_LEFT_PAREN }        
-        ')' { TOK_RIGHT_PAREN }        
+        '(' { TOK_LEFT_PAREN }
+        ')' { TOK_RIGHT_PAREN }
         if { TOK_IF }
         then { TOK_THEN }
         else { TOK_ELSE }
-        ':' { TOK_COLON }        
-        type { TOK_TYPE $$ }        
+        ':' { TOK_COLON }
+        ';' { TOK_SEMICOLON }
+        type { TOK_TYPE $$ }
 
 %nonassoc '.'
 %nonassoc else
@@ -34,6 +35,9 @@ import SimplyTyped.Lexer
 %nonassoc iszero
 %left '$'
 %%
+
+Terms   : Term { [$1] }
+        | Term ';' Terms { $1 : $3 }
 
 Term    : var { Var $1 }
         | lambda var ':' type '.' Term { Abs $2 $4 $6 }
@@ -46,6 +50,8 @@ Term    : var { Var $1 }
         | succ Term { Succ $2 }
         | pred Term { Pred $2 }
         | iszero Term { IsZero $2 }
+        | '('')' { ConstUnit }
+
 {
 parseError :: [Token] -> Either String a
 parseError _ = Left "Parse Error"
@@ -61,6 +67,7 @@ data Term
   | Succ Term
   | Pred Term
   | IsZero Term
+  | ConstUnit
   deriving (Eq)
 
 instance Show Term where
@@ -71,6 +78,7 @@ instance Show Term where
   show (IfThenElse t1 t2 t3) =
     "if " ++ show t1 ++ " then " ++ show t2 ++ " else " ++ show t3
   show ConstZero = "0"
+  show ConstUnit = "()"
   show (Succ t) = "succ " ++ show t
   show (Pred t) = "pred " ++ show t
   show (IsZero t) = "iszero " ++ show t
@@ -87,9 +95,9 @@ instance Show Term where
       showR t@(App _ _) = "(" ++ show t ++ ")"
       showR t = show t
 
-fullParser :: String -> Either String Term
+fullParser :: String -> Either String [Term]
 fullParser s =
   case lexer s of
     Left err -> Left $ show err
-    Right lexemes -> parseTerm lexemes
+    Right lexemes -> parseTerms lexemes
 }

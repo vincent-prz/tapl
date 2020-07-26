@@ -2,6 +2,7 @@ module Main where
 
 import SimplyTyped.Evaluator
 import SimplyTyped.Parser
+import SimplyTyped.Desugar
 import SimplyTyped.TypeChecker
 import System.Console.Haskeline
 
@@ -10,7 +11,7 @@ processInput input =
   let parseResult = fullParser input
    in case parseResult of
         Left err -> err
-        Right term -> processTerm term
+        Right terms -> processTerm (desugar terms)
 
 processTerm :: Term -> String
 processTerm term =
