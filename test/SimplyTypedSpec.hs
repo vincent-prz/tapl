@@ -217,3 +217,5 @@ spec = do
       show (parseThenEval "(let not=\\x:Bool.if x then false else true in \\x:Bool.if not $ x then 0 else succ 0) $ false") `shouldBe` "0"
     it "let inside if" $
       show (parseThenEval "if let x = true in x then 0 else succ 0") `shouldBe` "0"
+    it "nested if" $
+      show (parseThenEval "let id=\\x:Nat.x in let tobool=\\n:Nat.if iszero n then true else false in tobool $ (id $ 0)") `shouldBe` "true"

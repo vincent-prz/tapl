@@ -20,6 +20,9 @@ getFreeVars = g []
     g _ CoConstUnit = []
     g boundVars (CoIfThenElse t1 t2 t3) =
       g boundVars t1 ++ g boundVars t2 ++ g boundVars t3
+    g boundVars (CoSucc t) = g boundVars t
+    g boundVars (CoPred t) = g boundVars t
+    g boundVars (CoIsZero t) = g boundVars t
 
 pickFreshName :: String -> [String] -> String
 pickFreshName s l
