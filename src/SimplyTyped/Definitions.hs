@@ -50,6 +50,7 @@ instance Show Term where
   show (Succ t) = "succ " ++ show t
   show (Pred t) = "pred " ++ show t
   show (IsZero t) = "iszero " ++ show t
+  show (Ascription t ty) = show t ++ "as" ++ show ty
   show (App t1 t2) = showL t1 ++ " $ " ++ showR t2
     where
       showL (Var s) = s
@@ -63,35 +64,6 @@ instance Show Term where
       showR t@(App _ _) = "(" ++ show t ++ ")"
       showR t = show t
 
--- same as term, but with the rightmost Type parameter being the inferred typed
---data TypedTerm
---  = TyVar String Type
---  | TyAbs String Type Term Type
---  | TyApp Term Term Type
---  | TyConstTrue Type
---  | TyConstFalse Type
---  | TyIfThenElse Term Term Term Type
---  | TyConstZero Type
---  | TySucc Term Type
---  | TyPred Term Type
---  | TyIsZero Term Type
---  | TyConstUnit Type
---  deriving (Eq)
---
---
---toTyped :: Term -> Type -> TypedTerm
---toTyped (Var s) t = TyVar s t
---toTyped (Abs s t1 b) t = TyAbs s t1 b t
---toTyped (App t1 t2) t = TyApp t1 t2 t
---toTyped ConstTrue t = TyConstTrue t
---toTyped ConstFalse t = TyConstFalse t
---toTyped (IfThenElse g t1 t2) t = TyIfThenElse g t1 t2 t
---toTyped ConstZero t = TyConstZero t
---toTyped (Succ t1) t = TySucc t1 t
---toTyped (Pred t1) t = TyPred t1 t
---toTyped (IsZero t1) t = TyIsZero t1 t
---toTyped ConstUnit t = TyConstUnit t
--- Term obtained after unsequenceing
 data CoreTerm
   = CoVar String
   | CoAbs String
