@@ -1,9 +1,11 @@
 module Main where
 
+import SimplyTyped.Definitions
+import SimplyTyped.Desugar
 import SimplyTyped.Evaluator
 import SimplyTyped.Parser
-import SimplyTyped.Desugar
 import SimplyTyped.TypeChecker
+import SimplyTyped.Unsequence
 import System.Console.Haskeline
 
 processInput :: String -> String
@@ -11,13 +13,13 @@ processInput input =
   let parseResult = fullParser input
    in case parseResult of
         Left err -> err
-        Right terms -> processTerm (desugar terms)
+        Right terms -> processTerm (unsequence terms)
 
 processTerm :: Term -> String
 processTerm term =
   case typecheck term of
     Left err -> show err
-    Right typ -> show (evalTerm term) ++ " : " ++ show typ
+    Right typ -> show (evalTerm (desugar term)) ++ " : " ++ show typ
 
 main :: IO ()
 main =
