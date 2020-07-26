@@ -53,6 +53,9 @@ typecheckWithContext ctx (Ascription t ty) = do
   if actualType == ty
     then return ty
     else Left $ AscriptionMismatch ty actualType
+typecheckWithContext ctx (Let s t1 t2) = do
+  typ1 <- typecheckWithContext ctx t1
+  typecheckWithContext ctx (App (Abs s typ1 t2) t1)
 
 typecheckTerm :: TypeContext -> Term -> Type -> Type -> Either TypingError Type
 typecheckTerm ctx t expected output = do

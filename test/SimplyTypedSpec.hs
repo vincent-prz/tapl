@@ -140,6 +140,10 @@ spec = do
     it "failure when ascrbibing true as Nat" $
       parseThenTypeCheck "true as Nat" `shouldBe`
       Left (AscriptionMismatch {expected = TNat, got = TBool})
+    it "simple let" $
+      parseThenTypeCheck "let t=true in t" `shouldBe` Right TBool
+    it "let nat id and apply it" $
+      parseThenTypeCheck "let id=\\n: Nat.n in id $ 0" `shouldBe` Right TNat
   describe "Simply typed evaluation" $ do
     it "identity" $ show (parseThenEval "\\x:Bool.x") `shouldBe` "\\x:Bool.x"
     it "simple application" $
@@ -184,7 +188,7 @@ spec = do
     it "iszero pred succ 0" $
       show (parseThenEval "iszero pred succ 0") `shouldBe` "true"
     it "unit" $ show (parseThenEval "()") `shouldBe` "()"
-  describe "Simply typed sequencing" $ do
+  describe "Simply typed evaluation - sequencing" $ do
     it "unit then id bool" $
       show (parseThenEval "();\\x:Bool.x") `shouldBe` "\\x:Bool.x"
     it "unit then identity applied to true" $
@@ -194,7 +198,7 @@ spec = do
     it "unit x2 then const 0" $ show (parseThenEval "();();0") `shouldBe` "0"
     it "unit x2 then identity applied to true" $
       show (parseThenEval "();();(\\x:Bool.x) $ true") `shouldBe` "true"
-  describe "Simply typed ascription" $ do
+  describe "Simply typed evaluation - ascription" $ do
     it "true ascribed as Bool" $
       show (parseThenEval "true as Bool") `shouldBe` "true"
     it "0 ascribed as Nat" $ show (parseThenEval "0 as Nat") `shouldBe` "0"
@@ -202,3 +206,14 @@ spec = do
       show (parseThenEval "\\x:Bool.x as Bool") `shouldBe` "\\x:Bool.x"
     it "identity ascribed" $
       show (parseThenEval "(\\x:Bool.x) as Bool->Bool") `shouldBe` "\\x:Bool.x"
+  describe "Simply typed evaluation - let" $ do
+    it "simple let" $
+      show (parseThenEval "let t=true in t") `shouldBe` "true"
+    it "let bool id and apply it" $
+      show (parseThenEval "let id=\\x:Bool.x in id $ true") `shouldBe` "true"
+    it "let abstraction with if" $
+      show (parseThenEval "let f=\\x:Bool.if x then 0 else succ 0 in f $ false") `shouldBe` "succ 0"
+    it "let complex" $
+      show (parseThenEval "(let not=\\x:Bool.if x then false else true in \\x:Bool.if not $ x then 0 else succ 0) $ false") `shouldBe` "0"
+    it "let inside if" $
+      show (parseThenEval "if let x = true in x then 0 else succ 0") `shouldBe` "0"

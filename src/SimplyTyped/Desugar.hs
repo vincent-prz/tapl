@@ -17,3 +17,6 @@ desugar (Pred t1) = CoPred (desugar t1)
 desugar (IsZero t1) = CoIsZero (desugar t1)
 desugar ConstUnit = CoConstUnit
 desugar (Ascription term _) = desugar term
+-- hack: we don't actually care about the type of the abstraction here,
+-- so we just put undefined.
+desugar (Let s t1 t2) = CoApp (CoAbs s undefined (desugar t2)) (desugar t1)

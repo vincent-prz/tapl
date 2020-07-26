@@ -34,8 +34,10 @@ data Term
   | Pred Term
   | IsZero Term
   | ConstUnit
+  -- below is syntactic sugar
   | Ascription Term
                Type
+  | Let String Term Term
   deriving (Eq)
 
 instance Show Term where

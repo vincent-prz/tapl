@@ -29,6 +29,9 @@ import SimplyTyped.Definitions
         ';' { TOK_SEMICOLON }
         type { TOK_TYPE $$ }
         as { TOK_AS }
+        let { TOK_LET }
+        '=' { TOK_EQUAL }
+        in { TOK_IN}
 
 %nonassoc '.'
 %nonassoc else
@@ -55,6 +58,7 @@ Term    : var { Var $1 }
         | iszero Term { IsZero $2 }
         | '('')' { ConstUnit }
         | Term as type { Ascription $1 $3 }
+        | let var '=' Term in Term { Let $2 $4 $6 }
 
 {
 parseError :: [Token] -> Either String a
