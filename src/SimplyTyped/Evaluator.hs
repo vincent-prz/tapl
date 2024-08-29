@@ -2,34 +2,10 @@ module SimplyTyped.Evaluator where
 
 import qualified Data.Map as Map
 import SimplyTyped.Definitions (CoreTerm(..))
+import SimplyTyped.Variables (getFreeVars, pickFreshName)
 
 type Context = Map.Map String CoreTerm
 
-getFreeVars :: CoreTerm -> [String]
-getFreeVars = g []
-  where
-    g :: [String] -> CoreTerm -> [String]
-    g boundVars (CoVar s)
-      | s `elem` boundVars = []
-      | otherwise = [s]
-    g boundVars (CoApp t1 t2) = g boundVars t1 ++ g boundVars t2
-    g boundVars (CoAbs s _ t) = g (s : boundVars) t
-    g _ CoConstTrue = []
-    g _ CoConstFalse = []
-    g _ CoConstZero = []
-    g _ CoConstUnit = []
-    g boundVars (CoIfThenElse t1 t2 t3) =
-      g boundVars t1 ++ g boundVars t2 ++ g boundVars t3
-
-pickFreshName :: String -> [String] -> String
-pickFreshName s l
-  | s `notElem` l = s
-pickFreshName s l = g 1 s l
-  where
-    g :: Int -> String -> [String] -> String
-    g n name existingNames
-      | name ++ show n `elem` existingNames = g (n + 1) name existingNames
-      | otherwise = name ++ show n
 
 substitution :: String -> CoreTerm -> CoreTerm -> CoreTerm
 substitution x s (CoVar y)

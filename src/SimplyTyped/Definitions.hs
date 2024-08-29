@@ -1,5 +1,6 @@
 module SimplyTyped.Definitions where
 
+import Data.Maybe (fromMaybe)
 data Type
   = TBool
   | TNat
@@ -19,7 +20,7 @@ instance Show Type where
 
 data Term
   = Var String
-  | Abs String
+  | Abs (Maybe String)
         Type
         Term
   | App Term
@@ -40,7 +41,8 @@ data Term
 
 instance Show Term where
   show (Var s) = s
-  show (Abs s t b) = "\\" ++ s ++ ":" ++ show t ++ "." ++ show b
+  show (Abs s t b) = "\\" ++ paramName ++ ":" ++ show t ++ "." ++ show b where
+    paramName = fromMaybe "_" s
   show ConstTrue = "true"
   show ConstFalse = "false"
   show (IfThenElse t1 t2 t3) =

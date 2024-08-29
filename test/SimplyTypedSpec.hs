@@ -194,6 +194,11 @@ spec = do
     it "unit x2 then const 0" $ show (parseThenEval "();();0") `shouldBe` "0"
     it "unit x2 then identity applied to true" $
       show (parseThenEval "();();(\\x:Bool.x) $ true") `shouldBe` "true"
+  describe "Simply typed wildcard" $ do
+    it "simple wildcard" $
+      show (parseThenEval "\\_:Unit.true") `shouldBe` "\\_:Unit.true"
+    it "inner wildcard" $
+      show (parseThenEval "\\x:Bool.\\_:Unit.x") `shouldBe` "\\x:Bool.\\_:Unit.x"
   describe "Simply typed ascription" $ do
     it "true ascribed as Bool" $
       show (parseThenEval "true as Bool") `shouldBe` "true"
