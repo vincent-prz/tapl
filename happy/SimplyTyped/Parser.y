@@ -2,6 +2,7 @@
 module SimplyTyped.Parser where
 
 import SimplyTyped.Lexer
+import SimplyTyped.Definitions
 }
 %name parseTerms
 %tokentype { Token }
@@ -27,12 +28,14 @@ import SimplyTyped.Lexer
         ':' { TOK_COLON }
         ';' { TOK_SEMICOLON }
         type { TOK_TYPE $$ }
+        as { TOK_AS }
 
 %nonassoc '.'
 %nonassoc else
 %nonassoc succ
 %nonassoc pred
 %nonassoc iszero
+%nonassoc as
 %left '$'
 %%
 
@@ -51,49 +54,11 @@ Term    : var { Var $1 }
         | pred Term { Pred $2 }
         | iszero Term { IsZero $2 }
         | '('')' { ConstUnit }
+        | Term as type { Ascription $1 $3 }
 
 {
 parseError :: [Token] -> Either String a
 parseError _ = Left "Parse Error"
-
-data Term
-  = Var String
-  | Abs String Type Term
-  | App Term Term
-  | ConstTrue
-  | ConstFalse
-  | IfThenElse Term Term Term
-  | ConstZero
-  | Succ Term
-  | Pred Term
-  | IsZero Term
-  | ConstUnit
-  deriving (Eq)
-
-instance Show Term where
-  show (Var s) = s
-  show (Abs s t b) = "\\" ++ s ++ ":" ++ show t ++ "." ++ show b
-  show ConstTrue = "true"
-  show ConstFalse = "false"
-  show (IfThenElse t1 t2 t3) =
-    "if " ++ show t1 ++ " then " ++ show t2 ++ " else " ++ show t3
-  show ConstZero = "0"
-  show ConstUnit = "()"
-  show (Succ t) = "succ " ++ show t
-  show (Pred t) = "pred " ++ show t
-  show (IsZero t) = "iszero " ++ show t
-  show (App t1 t2) = showL t1 ++ " $ " ++ showR t2
-    where
-      showL (Var s) = s
-      showL t@Abs {} = "(" ++ show t ++ ")"
-      showL t@(App _ _) = show t
-      showL t@IfThenElse {} = "(" ++ show t ++ ")"
-      showL t@Succ {} = "(" ++ show t ++ ")"
-      showL t@Pred {} = "(" ++ show t ++ ")"
-      showL t@IsZero {} = "(" ++ show t ++ ")"
-      showL t = show t
-      showR t@(App _ _) = "(" ++ show t ++ ")"
-      showR t = show t
 
 fullParser :: String -> Either String [Term]
 fullParser s =

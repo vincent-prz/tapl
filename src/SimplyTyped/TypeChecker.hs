@@ -1,8 +1,7 @@
 module SimplyTyped.TypeChecker where
 
 import qualified Data.Map as Map
-import SimplyTyped.Lexer
-import SimplyTyped.Parser
+import SimplyTyped.Definitions
 
 type TypeContext = Map.Map String Type
 
@@ -14,6 +13,8 @@ data TypingError
   | IfBranchesTypeMismatch Type
                            Type
   | UnboundVariable String -- approx: unbound var is a typing error
+  | AscriptionMismatch { expected :: Type
+                       , got :: Type }
   deriving (Eq, Show)
 
 typecheck :: Term -> Either TypingError Type
@@ -47,6 +48,11 @@ typecheckWithContext ctx (Succ t) = typecheckTerm ctx t TNat TNat
 typecheckWithContext ctx (Pred t) = typecheckTerm ctx t TNat TNat
 typecheckWithContext ctx (IsZero t) = typecheckTerm ctx t TNat TBool
 typecheckWithContext _ ConstUnit = Right TUnit
+typecheckWithContext ctx (Ascription t ty) = do
+  actualType <- typecheckWithContext ctx t
+  if actualType == ty
+    then return ty
+    else Left $ AscriptionMismatch ty actualType
 
 typecheckTerm :: TypeContext -> Term -> Type -> Type -> Either TypingError Type
 typecheckTerm ctx t expected output = do

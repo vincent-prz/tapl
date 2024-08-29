@@ -1,23 +1,24 @@
 module SimplyTypedSpec where
 
-import SimplyTyped.Evaluator
-import SimplyTyped.Lexer
-import SimplyTyped.Parser
+import SimplyTyped.Definitions
 import SimplyTyped.Desugar
+import SimplyTyped.Evaluator
+import SimplyTyped.Parser
 import SimplyTyped.TypeChecker
+import SimplyTyped.Unsequence
 import Test.Hspec
 
-parseThenEval :: String -> Term
+parseThenEval :: String -> CoreTerm
 parseThenEval s =
   case fullParser s of
     Left err -> error err
-    Right terms -> evalTerm (desugar terms)
+    Right terms -> (evalTerm . desugar . unsequence) terms
 
 parseThenTypeCheck :: String -> Either TypingError Type
 parseThenTypeCheck s =
   case fullParser s of
     Left err -> error err
-    Right terms -> typecheck (desugar terms)
+    Right terms -> typecheck (unsequence terms)
 
 spec :: Spec
 spec = do
@@ -26,7 +27,8 @@ spec = do
     it "Bool identity" $
       show <$> fullParser "\\x:Bool.x" `shouldBe` Right "[\\x:Bool.x]"
     it "arrow identity" $
-      show <$> fullParser "\\x:Bool->Bool.x" `shouldBe` Right "[\\x:Bool->Bool.x]"
+      show <$>
+      fullParser "\\x:Bool->Bool.x" `shouldBe` Right "[\\x:Bool->Bool.x]"
     it "2 params lambda" $
       show <$>
       fullParser "\\x:Bool.\\y:Bool.x" `shouldBe` Right "[\\x:Bool.\\y:Bool.x]"
@@ -37,7 +39,8 @@ spec = do
     it "application with parens" $
       show <$> fullParser "x $ (y $ z)" `shouldBe` Right "[x $ (y $ z)]"
     it "application of lambda" $
-      show <$> fullParser "(\\x:Bool.x) $ x" `shouldBe` Right "[(\\x:Bool.x) $ x]"
+      show <$>
+      fullParser "(\\x:Bool.x) $ x" `shouldBe` Right "[(\\x:Bool.x) $ x]"
     it "if then else" $
       show <$>
       fullParser "if x then y else z" `shouldBe` Right "[if x then y else z]"
@@ -132,6 +135,11 @@ spec = do
       parseThenTypeCheck "iszero true" `shouldBe`
       Left (ArgMisMatch {expected = TNat, got = TBool})
     it "unit" $ show <$> parseThenTypeCheck "()" `shouldBe` Right "Unit"
+    it "0 as Nat" $
+      show <$> parseThenTypeCheck "0 as Nat" `shouldBe` Right "Nat"
+    it "failure when ascrbibing true as Nat" $
+      parseThenTypeCheck "true as Nat" `shouldBe`
+      Left (AscriptionMismatch {expected = TNat, got = TBool})
   describe "Simply typed evaluation" $ do
     it "identity" $ show (parseThenEval "\\x:Bool.x") `shouldBe` "\\x:Bool.x"
     it "simple application" $
@@ -177,7 +185,8 @@ spec = do
       show (parseThenEval "iszero pred succ 0") `shouldBe` "true"
     it "unit" $ show (parseThenEval "()") `shouldBe` "()"
   describe "Simply typed sequencing" $ do
-    it "unit then id bool" $ show (parseThenEval "();\\x:Bool.x") `shouldBe` "\\x:Bool.x"
+    it "unit then id bool" $
+      show (parseThenEval "();\\x:Bool.x") `shouldBe` "\\x:Bool.x"
     it "unit then identity applied to true" $
       show (parseThenEval "();(\\x:Bool.x) $ true") `shouldBe` "true"
     it "unit then const 0" $ show (parseThenEval "();0") `shouldBe` "0"
@@ -185,3 +194,11 @@ spec = do
     it "unit x2 then const 0" $ show (parseThenEval "();();0") `shouldBe` "0"
     it "unit x2 then identity applied to true" $
       show (parseThenEval "();();(\\x:Bool.x) $ true") `shouldBe` "true"
+  describe "Simply typed ascription" $ do
+    it "true ascribed as Bool" $
+      show (parseThenEval "true as Bool") `shouldBe` "true"
+    it "0 ascribed as Nat" $ show (parseThenEval "0 as Nat") `shouldBe` "0"
+    it "Body of bool identity ascribed" $
+      show (parseThenEval "\\x:Bool.x as Bool") `shouldBe` "\\x:Bool.x"
+    it "identity ascribed" $
+      show (parseThenEval "(\\x:Bool.x) as Bool->Bool") `shouldBe` "\\x:Bool.x"
