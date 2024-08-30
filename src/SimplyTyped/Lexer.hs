@@ -29,6 +29,9 @@ data Token
   | TOK_SEMICOLON
   | TOK_WILDCARD
   | TOK_AS
+  | TOK_LET
+  | TOK_EQUAL
+  | TOK_IN
   deriving (Eq, Show)
 
 parseVariable :: Parser Token
@@ -62,6 +65,8 @@ parseToken =
     , try $ string "pred" $> TOK_PRED
     , try $ string "iszero" $> TOK_ISZERO
     , try $ string "as" $> TOK_AS
+    , try $ string "let" $> TOK_LET
+    , try $ string "in" $> TOK_IN
     , try parseVariable
     , try parseType
     , try $ char '$' $> TOK_DOLLAR
@@ -75,6 +80,7 @@ parseToken =
     , try $ char ':' $> TOK_COLON
     , try $ char ';' $> TOK_SEMICOLON
     , try $ char '_' $> TOK_WILDCARD
+    , try $ char '=' $> TOK_EQUAL
     ]
 
 parseTokens :: Parser [Token]

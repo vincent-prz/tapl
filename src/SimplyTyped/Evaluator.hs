@@ -31,6 +31,9 @@ substitution x s (CoSucc t) = CoSucc (substitution x s t)
 substitution x s (CoPred t) = CoPred (substitution x s t)
 substitution x s (CoIsZero t) = CoIsZero (substitution x s t)
 substitution _ _ CoConstUnit = CoConstUnit
+substitution x s (CoLetExpr y t1 t2)
+ | x /= y = CoLetExpr y (substitution x s t1) (substitution x s t2)
+ | otherwise = CoLetExpr y (substitution x s t1) t2
 
 -- assumption: the input CoreTerm has been typechecked
 evalTerm :: CoreTerm -> CoreTerm
@@ -70,4 +73,6 @@ eval1Step (CoPred (CoSucc t)) = eval1Step t
 eval1Step (CoIsZero CoConstZero) = CoConstTrue
 eval1Step (CoIsZero (CoSucc _)) = CoConstFalse
 eval1Step (CoIsZero t) = CoIsZero (eval1Step t)
+eval1Step (CoLetExpr x t1 t2) = let
+  t1Val = eval1Step t1 in substitution x t1Val t2
 eval1Step t = t
