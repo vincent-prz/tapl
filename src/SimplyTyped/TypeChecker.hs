@@ -25,8 +25,10 @@ typecheckWithContext ctx (Var s) =
   case ctx Map.!? s of
     Nothing -> Left $ UnboundVariable s
     Just t -> Right t
-typecheckWithContext ctx (Abs s t b) =
+typecheckWithContext ctx (Abs (Just s) t b) =
   Arrow t <$> typecheckWithContext (Map.insert s t ctx) b
+typecheckWithContext ctx (Abs Nothing t b) =
+  Arrow t <$> typecheckWithContext ctx b
 typecheckWithContext ctx (App t1 t2) = do
   typ1 <- typecheckWithContext ctx t1
   typ2 <- typecheckWithContext ctx t2
@@ -53,6 +55,9 @@ typecheckWithContext ctx (Ascription t ty) = do
   if actualType == ty
     then return ty
     else Left $ AscriptionMismatch ty actualType
+typecheckWithContext ctx (LetExpr x t1 t2) = do
+    ty1 <- typecheckWithContext ctx t1
+    typecheckWithContext (Map.insert x ty1 ctx) t2
 
 typecheckTerm :: TypeContext -> Term -> Type -> Type -> Either TypingError Type
 typecheckTerm ctx t expected output = do

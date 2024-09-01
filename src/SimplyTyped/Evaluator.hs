@@ -2,34 +2,10 @@ module SimplyTyped.Evaluator where
 
 import qualified Data.Map as Map
 import SimplyTyped.Definitions (CoreTerm(..))
+import SimplyTyped.Variables (getFreeVars, pickFreshName)
 
 type Context = Map.Map String CoreTerm
 
-getFreeVars :: CoreTerm -> [String]
-getFreeVars = g []
-  where
-    g :: [String] -> CoreTerm -> [String]
-    g boundVars (CoVar s)
-      | s `elem` boundVars = []
-      | otherwise = [s]
-    g boundVars (CoApp t1 t2) = g boundVars t1 ++ g boundVars t2
-    g boundVars (CoAbs s _ t) = g (s : boundVars) t
-    g _ CoConstTrue = []
-    g _ CoConstFalse = []
-    g _ CoConstZero = []
-    g _ CoConstUnit = []
-    g boundVars (CoIfThenElse t1 t2 t3) =
-      g boundVars t1 ++ g boundVars t2 ++ g boundVars t3
-
-pickFreshName :: String -> [String] -> String
-pickFreshName s l
-  | s `notElem` l = s
-pickFreshName s l = g 1 s l
-  where
-    g :: Int -> String -> [String] -> String
-    g n name existingNames
-      | name ++ show n `elem` existingNames = g (n + 1) name existingNames
-      | otherwise = name ++ show n
 
 substitution :: String -> CoreTerm -> CoreTerm -> CoreTerm
 substitution x s (CoVar y)
@@ -55,6 +31,9 @@ substitution x s (CoSucc t) = CoSucc (substitution x s t)
 substitution x s (CoPred t) = CoPred (substitution x s t)
 substitution x s (CoIsZero t) = CoIsZero (substitution x s t)
 substitution _ _ CoConstUnit = CoConstUnit
+substitution x s (CoLetExpr y t1 t2)
+ | x /= y = CoLetExpr y (substitution x s t1) (substitution x s t2)
+ | otherwise = CoLetExpr y (substitution x s t1) t2
 
 -- assumption: the input CoreTerm has been typechecked
 evalTerm :: CoreTerm -> CoreTerm
@@ -94,4 +73,6 @@ eval1Step (CoPred (CoSucc t)) = eval1Step t
 eval1Step (CoIsZero CoConstZero) = CoConstTrue
 eval1Step (CoIsZero (CoSucc _)) = CoConstFalse
 eval1Step (CoIsZero t) = CoIsZero (eval1Step t)
+eval1Step (CoLetExpr x t1 t2) = let
+  t1Val = eval1Step t1 in substitution x t1Val t2
 eval1Step t = t

@@ -140,6 +140,11 @@ spec = do
     it "failure when ascrbibing true as Nat" $
       parseThenTypeCheck "true as Nat" `shouldBe`
       Left (AscriptionMismatch {expected = TNat, got = TBool})
+    it "trivial let" $ show <$> parseThenTypeCheck "let x=true in true" `shouldBe` Right "Bool"
+    it "simple let" $ show <$>
+     parseThenTypeCheck "let x=succ 0 in \\y:Unit.x" `shouldBe` Right "Unit->Nat"
+    it "illegal func apply in let" $ show <$>
+     parseThenTypeCheck "let x=() $ () in ()" `shouldBe` Left (FuncAppliedToConst TUnit)
   describe "Simply typed evaluation" $ do
     it "identity" $ show (parseThenEval "\\x:Bool.x") `shouldBe` "\\x:Bool.x"
     it "simple application" $
@@ -194,6 +199,11 @@ spec = do
     it "unit x2 then const 0" $ show (parseThenEval "();();0") `shouldBe` "0"
     it "unit x2 then identity applied to true" $
       show (parseThenEval "();();(\\x:Bool.x) $ true") `shouldBe` "true"
+  describe "Simply typed wildcard" $ do
+    it "simple wildcard" $
+      show (parseThenEval "\\_:Unit.true") `shouldBe` "\\_:Unit.true"
+    it "inner wildcard" $
+      show (parseThenEval "\\x:Bool.\\_:Unit.x") `shouldBe` "\\x:Bool.\\_:Unit.x"
   describe "Simply typed ascription" $ do
     it "true ascribed as Bool" $
       show (parseThenEval "true as Bool") `shouldBe` "true"
@@ -202,3 +212,15 @@ spec = do
       show (parseThenEval "\\x:Bool.x as Bool") `shouldBe` "\\x:Bool.x"
     it "identity ascribed" $
       show (parseThenEval "(\\x:Bool.x) as Bool->Bool") `shouldBe` "\\x:Bool.x"
+  describe "Simply typed let" $ do
+    it "trivial let" $ show (parseThenEval "let x=true in true") `shouldBe` "true"
+    it "simple let" $ show
+     (parseThenEval "let x=succ 0 in \\y:Unit.x") `shouldBe` "\\y:Unit.succ 0"
+    it "let inside lambda" $ show
+     (parseThenEval "\\x:Nat.let y=succ x in iszero y") `shouldBe` "\\x:Nat.let y=succ x in iszero y"
+    it "let inside lambda applied" $ show
+     (parseThenEval "(\\x:Nat.let y=succ x in iszero y) $ 0") `shouldBe` "false"
+    it "edge case: let name shadows abstraction param" $ show
+     (parseThenEval "(\\x:Nat.let x=0 in x) $ succ 0") `shouldBe` "0"
+    it "edge case: let name uses and shadows abstraction param" $ show
+     (parseThenEval "(\\x:Nat.let x=iszero x in x) $ 0") `shouldBe` "true"

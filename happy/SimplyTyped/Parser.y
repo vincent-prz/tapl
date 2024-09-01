@@ -27,8 +27,12 @@ import SimplyTyped.Definitions
         else { TOK_ELSE }
         ':' { TOK_COLON }
         ';' { TOK_SEMICOLON }
+        '_' { TOK_WILDCARD }
         type { TOK_TYPE $$ }
         as { TOK_AS }
+        let { TOK_LET }
+        '=' { TOK_EQUAL }
+        'in' { TOK_IN }
 
 %nonassoc '.'
 %nonassoc else
@@ -36,6 +40,7 @@ import SimplyTyped.Definitions
 %nonassoc pred
 %nonassoc iszero
 %nonassoc as
+%nonassoc 'in'
 %left '$'
 %%
 
@@ -43,7 +48,8 @@ Terms   : Term { [$1] }
         | Term ';' Terms { $1 : $3 }
 
 Term    : var { Var $1 }
-        | lambda var ':' type '.' Term { Abs $2 $4 $6 }
+        | lambda var ':' type '.' Term { Abs (Just $2) $4 $6 }
+        | lambda '_' ':' type '.' Term { Abs Nothing $4 $6 }
         | Term '$' Term { App $1 $3 }
         | '(' Term ')' { $2 }
         | true { ConstTrue }
@@ -55,6 +61,7 @@ Term    : var { Var $1 }
         | iszero Term { IsZero $2 }
         | '('')' { ConstUnit }
         | Term as type { Ascription $1 $3 }
+        | let var '=' Term 'in' Term { LetExpr $2 $4 $6 }
 
 {
 parseError :: [Token] -> Either String a

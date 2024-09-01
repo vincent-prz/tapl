@@ -1,5 +1,6 @@
 module SimplyTyped.Definitions where
 
+import Data.Maybe (fromMaybe)
 data Type
   = TBool
   | TNat
@@ -19,7 +20,7 @@ instance Show Type where
 
 data Term
   = Var String
-  | Abs String
+  | Abs (Maybe String)
         Type
         Term
   | App Term
@@ -36,11 +37,15 @@ data Term
   | ConstUnit
   | Ascription Term
                Type
+  | LetExpr String
+            Term
+            Term
   deriving (Eq)
 
 instance Show Term where
   show (Var s) = s
-  show (Abs s t b) = "\\" ++ s ++ ":" ++ show t ++ "." ++ show b
+  show (Abs s t b) = "\\" ++ paramName ++ ":" ++ show t ++ "." ++ show b where
+    paramName = fromMaybe "_" s
   show ConstTrue = "true"
   show ConstFalse = "false"
   show (IfThenElse t1 t2 t3) =
@@ -51,6 +56,7 @@ instance Show Term where
   show (Pred t) = "pred " ++ show t
   show (IsZero t) = "iszero " ++ show t
   show (Ascription t ty) = show t ++ "as" ++ show ty
+  show (LetExpr x t1 t2) = "let " ++ x ++ "=" ++ show t1 ++ " in " ++ show t2
   show (App t1 t2) = showL t1 ++ " $ " ++ showR t2
     where
       showL (Var s) = s
@@ -81,6 +87,9 @@ data CoreTerm
   | CoPred CoreTerm
   | CoIsZero CoreTerm
   | CoConstUnit
+  | CoLetExpr String
+              CoreTerm
+              CoreTerm
   deriving (Eq)
 
 instance Show CoreTerm where
@@ -95,6 +104,7 @@ instance Show CoreTerm where
   show (CoSucc t) = "succ " ++ show t
   show (CoPred t) = "pred " ++ show t
   show (CoIsZero t) = "iszero " ++ show t
+  show (CoLetExpr x t1 t2) = "let " ++ x ++ "=" ++ show t1 ++ " in " ++ show t2
   show (CoApp t1 t2) = showL t1 ++ " $ " ++ showR t2
     where
       showL (CoVar s) = s
