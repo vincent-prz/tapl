@@ -23,3 +23,5 @@ desugar (IsZero t1) = CoIsZero (desugar t1)
 desugar ConstUnit = CoConstUnit
 desugar (Ascription term _) = desugar term
 desugar (LetExpr x t1 t2) = CoLetExpr x (desugar t1) (desugar t2)
+desugar (Pair t1 t2) = CoPair (desugar t1) (desugar t2)
+desugar (Projection t n) = CoProjection (desugar t) n

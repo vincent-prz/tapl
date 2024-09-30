@@ -1,4 +1,9 @@
-module SimplyTyped.TypeChecker where
+module SimplyTyped.TypeChecker
+  ( TypeContext,
+    TypingError,
+    typecheck,
+  )
+where
 
 import qualified Data.Map as Map
 import SimplyTyped.Definitions
@@ -6,15 +11,22 @@ import SimplyTyped.Definitions
 type TypeContext = Map.Map String Type
 
 data TypingError
-  = ArgMisMatch { expected :: Type
-                , got :: Type }
+  = ArgMisMatch
+      { expected :: Type,
+        got :: Type
+      }
   | FuncAppliedToConst Type
   | IfGuardNotBool Type
-  | IfBranchesTypeMismatch Type
-                           Type
+  | IfBranchesTypeMismatch
+      Type
+      Type
   | UnboundVariable String -- approx: unbound var is a typing error
-  | AscriptionMismatch { expected :: Type
-                       , got :: Type }
+  | AscriptionMismatch
+      { expected :: Type,
+        got :: Type
+      }
+  | ProjAppliedToNonPair Type
+  | IllegalProj Int
   deriving (Eq, Show)
 
 typecheck :: Term -> Either TypingError Type
@@ -56,8 +68,17 @@ typecheckWithContext ctx (Ascription t ty) = do
     then return ty
     else Left $ AscriptionMismatch ty actualType
 typecheckWithContext ctx (LetExpr x t1 t2) = do
-    ty1 <- typecheckWithContext ctx t1
-    typecheckWithContext (Map.insert x ty1 ctx) t2
+  ty1 <- typecheckWithContext ctx t1
+  typecheckWithContext (Map.insert x ty1 ctx) t2
+typecheckWithContext ctx (Pair t1 t2) = TPair <$> typecheckWithContext ctx t1 <*> typecheckWithContext ctx t2
+typecheckWithContext ctx (Projection t n) = do
+  ty <- typecheckWithContext ctx t
+  case ty of
+    TPair ty1 ty2 -> case n of
+      1 -> return ty1
+      2 -> return ty2
+      _ -> Left (IllegalProj n)
+    _ -> Left (ProjAppliedToNonPair ty)
 
 typecheckTerm :: TypeContext -> Term -> Type -> Type -> Either TypingError Type
 typecheckTerm ctx t expected output = do

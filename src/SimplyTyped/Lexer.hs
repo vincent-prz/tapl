@@ -1,8 +1,10 @@
-module SimplyTyped.Lexer(
-  Token(..),
-  lexer
-) where
+module SimplyTyped.Lexer
+  ( Token (..),
+    lexer,
+  )
+where
 
+import Data.Char (digitToInt)
 import Data.Functor
 import SimplyTyped.Definitions
 import Text.ParserCombinators.Parsec
@@ -32,6 +34,8 @@ data Token
   | TOK_LET
   | TOK_EQUAL
   | TOK_IN
+  | TOK_COMMA
+  | TOK_NUMBER Int
   deriving (Eq, Show)
 
 parseVariable :: Parser Token
@@ -43,8 +47,8 @@ parseSingleType =
 
 parseArrowType :: Parser Type
 parseArrowType =
-  try (Arrow <$> parseSingleType <*> (string "->" *> parseArrowType)) <|>
-  parseSingleType
+  try (Arrow <$> parseSingleType <*> (string "->" *> parseArrowType))
+    <|> parseSingleType
 
 parseType :: Parser Token
 parseType = TOK_TYPE <$> parseArrowType
@@ -55,32 +59,34 @@ whitespace = many (oneOf [' ', '\t'])
 parseToken :: Parser Token
 parseToken =
   choice
-    [ try $ string "true" $> TOK_TRUE
-    , try $ string "false" $> TOK_FALSE
-    , try $ string "if" $> TOK_IF
-    , try $ string "then" $> TOK_THEN
-    , try $ string "else" $> TOK_ELSE
-    , try $ char '0' $> TOK_ZERO
-    , try $ string "succ" $> TOK_SUCC
-    , try $ string "pred" $> TOK_PRED
-    , try $ string "iszero" $> TOK_ISZERO
-    , try $ string "as" $> TOK_AS
-    , try $ string "let" $> TOK_LET
-    , try $ string "in" $> TOK_IN
-    , try parseVariable
-    , try parseType
-    , try $ char '$' $> TOK_DOLLAR
-    , try $ char '\\' $> TOK_LAMBDA
-    , try $ char '.' $> TOK_DOT
-    , try $ char '(' $> TOK_LEFT_PAREN
-    , try $ char ')' $> TOK_RIGHT_PAREN
-    , try $ string "if" $> TOK_IF
-    , try $ string "then" $> TOK_THEN
-    , try $ string "else" $> TOK_ELSE
-    , try $ char ':' $> TOK_COLON
-    , try $ char ';' $> TOK_SEMICOLON
-    , try $ char '_' $> TOK_WILDCARD
-    , try $ char '=' $> TOK_EQUAL
+    [ try $ string "true" $> TOK_TRUE,
+      try $ string "false" $> TOK_FALSE,
+      try $ string "if" $> TOK_IF,
+      try $ string "then" $> TOK_THEN,
+      try $ string "else" $> TOK_ELSE,
+      try $ char '0' $> TOK_ZERO,
+      try $ string "succ" $> TOK_SUCC,
+      try $ string "pred" $> TOK_PRED,
+      try $ string "iszero" $> TOK_ISZERO,
+      try $ string "as" $> TOK_AS,
+      try $ string "let" $> TOK_LET,
+      try $ string "in" $> TOK_IN,
+      try parseVariable,
+      try parseType,
+      try $ char '$' $> TOK_DOLLAR,
+      try $ char '\\' $> TOK_LAMBDA,
+      try $ char '.' $> TOK_DOT,
+      try $ char '(' $> TOK_LEFT_PAREN,
+      try $ char ')' $> TOK_RIGHT_PAREN,
+      try $ string "if" $> TOK_IF,
+      try $ string "then" $> TOK_THEN,
+      try $ string "else" $> TOK_ELSE,
+      try $ char ':' $> TOK_COLON,
+      try $ char ';' $> TOK_SEMICOLON,
+      try $ char '_' $> TOK_WILDCARD,
+      try $ char '=' $> TOK_EQUAL,
+      try $ char ',' $> TOK_COMMA,
+      try $ TOK_NUMBER . digitToInt <$> digit
     ]
 
 parseTokens :: Parser [Token]

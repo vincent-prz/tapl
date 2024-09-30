@@ -33,6 +33,8 @@ import SimplyTyped.Definitions
         let { TOK_LET }
         '=' { TOK_EQUAL }
         'in' { TOK_IN }
+        ',' { TOK_COMMA }
+        number { TOK_NUMBER $$ }
 
 %nonassoc '.'
 %nonassoc else
@@ -62,6 +64,8 @@ Term    : var { Var $1 }
         | '('')' { ConstUnit }
         | Term as type { Ascription $1 $3 }
         | let var '=' Term 'in' Term { LetExpr $2 $4 $6 }
+        | '(' Term ',' Term')' { Pair $2 $4 }
+        | Term '.' number { Projection $1 $3 }
 
 {
 parseError :: [Token] -> Either String a
