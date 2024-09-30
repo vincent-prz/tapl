@@ -1,6 +1,6 @@
 module SimplyTyped.TypeChecker
   ( TypeContext,
-    TypingError,
+    TypingError (..),
     typecheck,
   )
 where
@@ -26,7 +26,7 @@ data TypingError
         got :: Type
       }
   | ProjAppliedToNonPair Type
-  | IllegalProj Int
+  | OutOfBoundProj Int
   deriving (Eq, Show)
 
 typecheck :: Term -> Either TypingError Type
@@ -77,7 +77,7 @@ typecheckWithContext ctx (Projection t n) = do
     TPair ty1 ty2 -> case n of
       1 -> return ty1
       2 -> return ty2
-      _ -> Left (IllegalProj n)
+      _ -> Left (OutOfBoundProj n)
     _ -> Left (ProjAppliedToNonPair ty)
 
 typecheckTerm :: TypeContext -> Term -> Type -> Type -> Either TypingError Type
