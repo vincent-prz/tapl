@@ -246,3 +246,4 @@ spec = do
     it "trivial projection 1" $ show (parseThenEval "(0, true).1") `shouldBe` "0"
     it "trivial projection 2" $ show (parseThenEval "(0, true).2") `shouldBe` "true"
     it "evaluation inside pair" $ show (parseThenEval "(iszero 0, true)") `shouldBe` "(true, true)"
+    it "trivial 3 uple" $ show (parseThenEval "(0, true, false)") `shouldBe` "(0, true, false)"

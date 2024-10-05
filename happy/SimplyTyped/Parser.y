@@ -64,8 +64,11 @@ Term    : var { Var $1 }
         | '('')' { ConstUnit }
         | Term as type { Ascription $1 $3 }
         | let var '=' Term 'in' Term { LetExpr $2 $4 $6 }
-        | '(' Term ',' Term')' { Pair $2 $4 }
+        | '(' TupleElems ')' { Tuple $2 }
         | Term '.' number { Projection $1 $3 }
+
+TupleElems : Term ',' Term { [$1, $3] }
+           | Term ',' TupleElems { $1 : $3 }
 
 {
 parseError :: [Token] -> Either String a

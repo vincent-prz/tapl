@@ -70,14 +70,14 @@ typecheckWithContext ctx (Ascription t ty) = do
 typecheckWithContext ctx (LetExpr x t1 t2) = do
   ty1 <- typecheckWithContext ctx t1
   typecheckWithContext (Map.insert x ty1 ctx) t2
-typecheckWithContext ctx (Pair t1 t2) = TPair <$> typecheckWithContext ctx t1 <*> typecheckWithContext ctx t2
+typecheckWithContext ctx (Tuple ts) = TTuple <$> mapM (typecheckWithContext ctx) ts
 typecheckWithContext ctx (Projection t n) = do
   ty <- typecheckWithContext ctx t
   case ty of
-    TPair ty1 ty2 -> case n of
-      1 -> return ty1
-      2 -> return ty2
-      _ -> Left (OutOfBoundProj n)
+    TTuple ts ->
+      if n `elem` [1 .. length ts]
+        then return (ts !! (n - 1))
+        else Left (OutOfBoundProj n)
     _ -> Left (ProjAppliedToNonPair ty)
 
 typecheckTerm :: TypeContext -> Term -> Type -> Type -> Either TypingError Type

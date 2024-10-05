@@ -1,5 +1,6 @@
 module SimplyTyped.Definitions where
 
+import Data.List (intercalate)
 import Data.Maybe (fromMaybe)
 
 data Type
@@ -9,15 +10,13 @@ data Type
       Type
       Type
   | TUnit
-  | TPair
-      Type
-      Type
+  | TTuple [Type]
   deriving (Eq)
 
 instance Show Type where
   show TBool = "Bool"
   show TNat = "Nat"
-  show (TPair t1 t2) = "(" ++ show t1 ++ ", " ++ show t2 ++ ")"
+  show (TTuple ts) = "(" ++ intercalate ", " (map show ts) ++ ")"
   show (Arrow t1 t2) = showL t1 ++ "->" ++ show t2
     where
       showL arr@(Arrow _ _) = "(" ++ show arr ++ ")"
@@ -51,9 +50,7 @@ data Term
       String
       Term
       Term
-  | Pair
-      Term
-      Term
+  | Tuple [Term]
   | Projection
       Term
       Int
@@ -75,7 +72,7 @@ instance Show Term where
   show (IsZero t) = "iszero " ++ show t
   show (Ascription t ty) = show t ++ "as" ++ show ty
   show (LetExpr x t1 t2) = "let " ++ x ++ "=" ++ show t1 ++ " in " ++ show t2
-  show (Pair t1 t2) = "(" ++ show t1 ++ ", " ++ show t2 ++ ")"
+  show (Tuple ts) = "(" ++ intercalate ", " (map show ts) ++ ")"
   show (Projection t n) = show t ++ "." ++ show n
   show (App t1 t2) = showL t1 ++ " $ " ++ showR t2
     where
@@ -114,9 +111,7 @@ data CoreTerm
       String
       CoreTerm
       CoreTerm
-  | CoPair
-      CoreTerm
-      CoreTerm
+  | CoTuple [CoreTerm]
   | CoProjection
       CoreTerm
       Int
@@ -135,7 +130,7 @@ instance Show CoreTerm where
   show (CoPred t) = "pred " ++ show t
   show (CoIsZero t) = "iszero " ++ show t
   show (CoLetExpr x t1 t2) = "let " ++ x ++ "=" ++ show t1 ++ " in " ++ show t2
-  show (CoPair t1 t2) = "(" ++ show t1 ++ ", " ++ show t2 ++ ")"
+  show (CoTuple ts) = "(" ++ intercalate ", " (map show ts) ++ ")"
   show (CoProjection t n) = show t ++ "." ++ show n
   show (CoApp t1 t2) = showL t1 ++ " $ " ++ showR t2
     where
