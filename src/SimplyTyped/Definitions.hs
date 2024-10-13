@@ -1,17 +1,22 @@
 module SimplyTyped.Definitions where
 
+import Data.List (intercalate)
 import Data.Maybe (fromMaybe)
+
 data Type
   = TBool
   | TNat
-  | Arrow Type
-          Type
+  | Arrow
+      Type
+      Type
   | TUnit
+  | TTuple [Type]
   deriving (Eq)
 
 instance Show Type where
   show TBool = "Bool"
   show TNat = "Nat"
+  show (TTuple ts) = "(" ++ intercalate ", " (map show ts) ++ ")"
   show (Arrow t1 t2) = showL t1 ++ "->" ++ show t2
     where
       showL arr@(Arrow _ _) = "(" ++ show arr ++ ")"
@@ -20,32 +25,42 @@ instance Show Type where
 
 data Term
   = Var String
-  | Abs (Maybe String)
-        Type
-        Term
-  | App Term
-        Term
+  | Abs
+      (Maybe String)
+      Type
+      Term
+  | App
+      Term
+      Term
   | ConstTrue
   | ConstFalse
-  | IfThenElse Term
-               Term
-               Term
+  | IfThenElse
+      Term
+      Term
+      Term
   | ConstZero
   | Succ Term
   | Pred Term
   | IsZero Term
   | ConstUnit
-  | Ascription Term
-               Type
-  | LetExpr String
-            Term
-            Term
+  | Ascription
+      Term
+      Type
+  | LetExpr
+      String
+      Term
+      Term
+  | Tuple [Term]
+  | Projection
+      Term
+      Int
   deriving (Eq)
 
 instance Show Term where
   show (Var s) = s
-  show (Abs s t b) = "\\" ++ paramName ++ ":" ++ show t ++ "." ++ show b where
-    paramName = fromMaybe "_" s
+  show (Abs s t b) = "\\" ++ paramName ++ ":" ++ show t ++ "." ++ show b
+    where
+      paramName = fromMaybe "_" s
   show ConstTrue = "true"
   show ConstFalse = "false"
   show (IfThenElse t1 t2 t3) =
@@ -57,6 +72,8 @@ instance Show Term where
   show (IsZero t) = "iszero " ++ show t
   show (Ascription t ty) = show t ++ "as" ++ show ty
   show (LetExpr x t1 t2) = "let " ++ x ++ "=" ++ show t1 ++ " in " ++ show t2
+  show (Tuple ts) = "(" ++ intercalate ", " (map show ts) ++ ")"
+  show (Projection t n) = show t ++ "." ++ show n
   show (App t1 t2) = showL t1 ++ " $ " ++ showR t2
     where
       showL (Var s) = s
@@ -72,24 +89,32 @@ instance Show Term where
 
 data CoreTerm
   = CoVar String
-  | CoAbs String
-          Type
-          CoreTerm
-  | CoApp CoreTerm
-          CoreTerm
+  | CoAbs
+      String
+      Type
+      CoreTerm
+  | CoApp
+      CoreTerm
+      CoreTerm
   | CoConstTrue
   | CoConstFalse
-  | CoIfThenElse CoreTerm
-                 CoreTerm
-                 CoreTerm
+  | CoIfThenElse
+      CoreTerm
+      CoreTerm
+      CoreTerm
   | CoConstZero
   | CoSucc CoreTerm
   | CoPred CoreTerm
   | CoIsZero CoreTerm
   | CoConstUnit
-  | CoLetExpr String
-              CoreTerm
-              CoreTerm
+  | CoLetExpr
+      String
+      CoreTerm
+      CoreTerm
+  | CoTuple [CoreTerm]
+  | CoProjection
+      CoreTerm
+      Int
   deriving (Eq)
 
 instance Show CoreTerm where
@@ -105,6 +130,8 @@ instance Show CoreTerm where
   show (CoPred t) = "pred " ++ show t
   show (CoIsZero t) = "iszero " ++ show t
   show (CoLetExpr x t1 t2) = "let " ++ x ++ "=" ++ show t1 ++ " in " ++ show t2
+  show (CoTuple ts) = "(" ++ intercalate ", " (map show ts) ++ ")"
+  show (CoProjection t n) = show t ++ "." ++ show n
   show (CoApp t1 t2) = showL t1 ++ " $ " ++ showR t2
     where
       showL (CoVar s) = s
