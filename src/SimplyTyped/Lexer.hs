@@ -18,6 +18,9 @@ data Token
   | TOK_SUCC
   | TOK_PRED
   | TOK_ISZERO
+  | TOK_BOOL
+  | TOK_NAT
+  | TOK_UNIT
   | TOK_LAMBDA
   | TOK_DOT
   | TOK_DOLLAR
@@ -27,7 +30,6 @@ data Token
   | TOK_THEN
   | TOK_ELSE
   | TOK_COLON
-  | TOK_TYPE Type
   | TOK_SEMICOLON
   | TOK_WILDCARD
   | TOK_AS
@@ -35,23 +37,12 @@ data Token
   | TOK_EQUAL
   | TOK_IN
   | TOK_COMMA
+  | TOK_ARROW
   | TOK_NUMBER Int
   deriving (Eq, Show)
 
 parseVariable :: Parser Token
 parseVariable = TOK_VAR <$> ((:) <$> lower <*> many alphaNum)
-
-parseSingleType :: Parser Type
-parseSingleType =
-  string "Bool" $> TBool <|> string "Nat" $> TNat <|> string "Unit" $> TUnit
-
-parseArrowType :: Parser Type
-parseArrowType =
-  try (Arrow <$> parseSingleType <*> (string "->" *> parseArrowType))
-    <|> parseSingleType
-
-parseType :: Parser Token
-parseType = TOK_TYPE <$> parseArrowType
 
 whitespace :: Parser String
 whitespace = many (oneOf [' ', '\t'])
@@ -68,11 +59,13 @@ parseToken =
       try $ string "succ" $> TOK_SUCC,
       try $ string "pred" $> TOK_PRED,
       try $ string "iszero" $> TOK_ISZERO,
+      try $ string "Bool" $> TOK_BOOL,
+      try $ string "Nat" $> TOK_NAT,
+      try $ string "Unit" $> TOK_UNIT,
       try $ string "as" $> TOK_AS,
       try $ string "let" $> TOK_LET,
       try $ string "in" $> TOK_IN,
       try parseVariable,
-      try parseType,
       try $ char '$' $> TOK_DOLLAR,
       try $ char '\\' $> TOK_LAMBDA,
       try $ char '.' $> TOK_DOT,
@@ -86,6 +79,7 @@ parseToken =
       try $ char '_' $> TOK_WILDCARD,
       try $ char '=' $> TOK_EQUAL,
       try $ char ',' $> TOK_COMMA,
+      try $ string "->" $> TOK_ARROW,
       try $ TOK_NUMBER . digitToInt <$> digit
     ]
 

@@ -17,6 +17,9 @@ import SimplyTyped.Definitions
         succ { TOK_SUCC }
         pred { TOK_PRED }
         iszero { TOK_ISZERO }
+        'Bool' { TOK_BOOL }
+        'Nat' { TOK_NAT }
+        'Unit' { TOK_UNIT }
         lambda { TOK_LAMBDA }
         '.' { TOK_DOT }
         '$' { TOK_DOLLAR }
@@ -28,12 +31,12 @@ import SimplyTyped.Definitions
         ':' { TOK_COLON }
         ';' { TOK_SEMICOLON }
         '_' { TOK_WILDCARD }
-        type { TOK_TYPE $$ }
         as { TOK_AS }
         let { TOK_LET }
         '=' { TOK_EQUAL }
         'in' { TOK_IN }
         ',' { TOK_COMMA }
+        '->' { TOK_ARROW }
         number { TOK_NUMBER $$ }
 
 %nonassoc '.'
@@ -44,14 +47,16 @@ import SimplyTyped.Definitions
 %nonassoc as
 %nonassoc 'in'
 %left '$'
+%right '->'
 %%
+
 
 Terms   : Term { [$1] }
         | Term ';' Terms { $1 : $3 }
 
 Term    : var { Var $1 }
-        | lambda var ':' type '.' Term { Abs (Just $2) $4 $6 }
-        | lambda '_' ':' type '.' Term { Abs Nothing $4 $6 }
+        | lambda var ':' Type '.' Term { Abs (Just $2) $4 $6 }
+        | lambda '_' ':' Type '.' Term { Abs Nothing $4 $6 }
         | Term '$' Term { App $1 $3 }
         | '(' Term ')' { $2 }
         | true { ConstTrue }
@@ -62,10 +67,21 @@ Term    : var { Var $1 }
         | pred Term { Pred $2 }
         | iszero Term { IsZero $2 }
         | '('')' { ConstUnit }
-        | Term as type { Ascription $1 $3 }
+        | Term as Type { Ascription $1 $3 }
         | let var '=' Term 'in' Term { LetExpr $2 $4 $6 }
         | '(' TupleElems ')' { Tuple $2 }
         | Term '.' number { Projection $1 $3 }
+
+BaseType  : 'Bool' { TBool }
+          | 'Nat' { TNat }
+          | 'Unit' { TUnit }
+
+Type : BaseType { $1 }
+     | '(' TupleType ')' { TTuple $2 }
+     | Type '->' Type { Arrow $1 $3 }
+
+TupleType : Type ',' Type { [$1, $3] }
+          | Type ',' TupleType { $1 : $3 }
 
 TupleElems : Term ',' Term { [$1, $3] }
            | Term ',' TupleElems { $1 : $3 }
