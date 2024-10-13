@@ -39,7 +39,8 @@ import SimplyTyped.Definitions
         '->' { TOK_ARROW }
         number { TOK_NUMBER $$ }
 
-%nonassoc '.'
+-- TODO: the precedence rules are probably wrong here
+%right '.'
 %nonassoc else
 %nonassoc succ
 %nonassoc pred

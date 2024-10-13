@@ -153,6 +153,7 @@ spec = do
     it "projection not applied to tuple" $ parseThenTypeCheck "true.1" `shouldBe` Left (ProjAppliedToNonPair TBool)
     it "out of bound projection" $ parseThenTypeCheck "(0, true).3" `shouldBe` Left (OutOfBoundProj 3)
     it "pair as function input" $ show <$> parseThenTypeCheck "\\x:(Nat, Bool).(x.1)" `shouldBe` Right "(Nat, Bool)->Nat"
+    it "pair as function input wo parens" $ show <$> parseThenTypeCheck "\\x:(Nat, Bool).x.1" `shouldBe` Right "(Nat, Bool)->Nat"
   describe "Simply typed evaluation" $ do
     it "identity" $ show (parseThenEval "\\x:Bool.x") `shouldBe` "\\x:Bool.x"
     it "simple application" $
