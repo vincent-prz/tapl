@@ -1,6 +1,6 @@
 module SimplyTyped.Evaluator (evalTerm) where
 
-import Control.Monad.State (MonadState (get, put), State, evalState)
+import Control.Monad.State (MonadState (get), State, evalState, modify)
 import qualified Data.Map as Map
 import SimplyTyped.Definitions (CoreTerm (..))
 import SimplyTyped.Variables (getFreeVars, pickFreshName)
@@ -91,8 +91,7 @@ eval1Step tup@(CoTuple ts)
   | not (isValue tup) =
     CoTuple <$> mapM (\t -> if not (isValue t) then eval1Step t else pure t) ts
 eval1Step (CoAssign s t) = do
-  ctx <- get
-  put (Map.insert s t ctx)
+  modify (Map.insert s t)
   return CoConstUnit
 eval1Step t@(CoVar s) = do
   ctx <- get
