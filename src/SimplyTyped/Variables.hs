@@ -1,5 +1,6 @@
 module SimplyTyped.Variables (getFreshName, getFreeVars, pickFreshName) where
-import SimplyTyped.Definitions (CoreTerm(..))
+
+import SimplyTyped.Definitions (CoreTerm (..))
 
 getFreshName :: String -> CoreTerm -> String
 getFreshName defaultName = pickFreshName defaultName . getAllVars
@@ -28,6 +29,10 @@ getVars excludeBounded = g []
     g boundVars (CoSucc t) = g boundVars t
     g boundVars (CoPred t) = g boundVars t
     g boundVars (CoIsZero t) = g boundVars t
+    g boundVars (CoTuple ts) = concatMap (g boundVars) ts
+    g boundVars (CoProjection t n) = g boundVars t
+    -- is this correct ?
+    g boundVars (CoAssign s t) = g boundVars t
 
 pickFreshName :: String -> [String] -> String
 pickFreshName s l

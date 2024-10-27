@@ -41,6 +41,11 @@ typecheckWithContext ctx (Abs (Just s) t b) =
   Arrow t <$> typecheckWithContext (Map.insert s t ctx) b
 typecheckWithContext ctx (Abs Nothing t b) =
   Arrow t <$> typecheckWithContext ctx b
+-- FIXME
+typecheckWithContext ctx (App t2 (Assign s t1)) = do
+  typ1 <- typecheckWithContext ctx t1
+  typ2 <- typecheckWithContext (Map.insert s typ1 ctx) t2
+  typecheckApplication typ2 TUnit
 typecheckWithContext ctx (App t1 t2) = do
   typ1 <- typecheckWithContext ctx t1
   typ2 <- typecheckWithContext ctx t2
@@ -79,6 +84,7 @@ typecheckWithContext ctx (Projection t n) = do
         then return (ts !! (n - 1))
         else Left (OutOfBoundProj n)
     _ -> Left (ProjAppliedToNonPair ty)
+typecheckWithContext ctx (Assign _ t) = typecheckWithContext ctx t >>= const (return TUnit)
 
 typecheckTerm :: TypeContext -> Term -> Type -> Type -> Either TypingError Type
 typecheckTerm ctx t expected output = do

@@ -249,3 +249,10 @@ spec = do
     it "trivial projection 2" $ show (parseThenEval "(0, true).2") `shouldBe` "true"
     it "evaluation inside pair" $ show (parseThenEval "(iszero 0, true)") `shouldBe` "(true, true)"
     it "trivial 3 uple" $ show (parseThenEval "(0, true, false)") `shouldBe` "(0, true, false)"
+    it "tuple applied to nested abs" $ show (parseThenEval "(\\x:(Nat, Nat).\\y:Unit.x) $ (0, 0)") `shouldBe` "\\y:Unit.(0, 0)"
+    it "proj applied to nested abs" $ show (parseThenEval "(\\x:Nat.\\y:Unit.x) $ (0, 0).1") `shouldBe` "\\y:Unit.(0, 0).1"
+  describe "Simply typed assignments" $ do
+    it "simple assignment" $ show (parseThenEval "z=0;z") `shouldBe` "0"
+    it "simple assignment 2" $ show (parseThenEval "z=0;false") `shouldBe` "false"
+    it "simple assignment 3" $ show (parseThenEval "z=true") `shouldBe` "()"
+    it "double assignment" $ show (parseThenEval "f=\\x:Nat.x;z=0; f $ z") `shouldBe` "0"
