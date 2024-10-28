@@ -5,7 +5,7 @@ import SimplyTyped.Desugar
 import SimplyTyped.Evaluator
 import SimplyTyped.Parser
 import SimplyTyped.TypeChecker
-import SimplyTyped.TypeChecker (TypingError (OutOfBoundProj, ProjAppliedToNonPair))
+import SimplyTyped.TypeChecker (TypingError (OutOfBoundProj, ProjAppliedToNonPair, UnboundVariable))
 import SimplyTyped.Unsequence
 import Test.Hspec
 
@@ -154,6 +154,11 @@ spec = do
     it "out of bound projection" $ parseThenTypeCheck "(0, true).3" `shouldBe` Left (OutOfBoundProj 3)
     it "pair as function input" $ show <$> parseThenTypeCheck "\\x:(Nat, Bool).(x.1)" `shouldBe` Right "(Nat, Bool)->Nat"
     it "pair as function input wo parens" $ show <$> parseThenTypeCheck "\\x:(Nat, Bool).x.1" `shouldBe` Right "(Nat, Bool)->Nat"
+    it "simple assignment" $ show <$> parseThenTypeCheck "z=0;z" `shouldBe` Right "Nat"
+    it "simple assignment 2" $ show <$> parseThenTypeCheck "z=0;false" `shouldBe` Right "Bool"
+    it "simple assignment 3" $ show <$> parseThenTypeCheck "z=true" `shouldBe` Right "Unit"
+    it "double assignment" $ show <$> parseThenTypeCheck "f=\\x:Nat.x;z=0; f $ z" `shouldBe` Right "Nat"
+    it "assignment unbound var after assignment" $ show <$> parseThenTypeCheck "z=0;x" `shouldBe` Left (UnboundVariable "x")
   describe "Simply typed evaluation" $ do
     it "identity" $ show (parseThenEval "\\x:Bool.x") `shouldBe` "\\x:Bool.x"
     it "simple application" $

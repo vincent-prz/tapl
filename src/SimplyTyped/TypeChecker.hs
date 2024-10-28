@@ -38,23 +38,19 @@ typecheckWithContext (Var s) = do
   ctx <- get
   case ctx Map.!? s of
     Nothing -> lift $ Left $ UnboundVariable s
-    Just t -> lift $ Right t
+    Just t -> return t
 typecheckWithContext (Abs (Just s) t b) = do
   modify (Map.insert s t)
   Arrow t <$> typecheckWithContext b
 typecheckWithContext (Abs Nothing t b) =
   Arrow t <$> typecheckWithContext b
-typecheckWithContext (App t2 (Assign s t1)) = do
-  typ1 <- typecheckWithContext t1
-  modify (Map.insert s typ1)
-  typ2 <- typecheckWithContext t2
-  lift $ typecheckApplication typ2 TUnit
 typecheckWithContext (App t1 t2) = do
-  typ1 <- typecheckWithContext t1
+  -- order matters because t2 can assign variables for t1
   typ2 <- typecheckWithContext t2
+  typ1 <- typecheckWithContext t1
   lift $ typecheckApplication typ1 typ2
-typecheckWithContext ConstTrue = lift $ Right TBool
-typecheckWithContext ConstFalse = lift $ Right TBool
+typecheckWithContext ConstTrue = return TBool
+typecheckWithContext ConstFalse = return TBool
 typecheckWithContext (IfThenElse t1 t2 t3) = do
   typ1 <- typecheckWithContext t1
   if typ1 == TBool
@@ -65,11 +61,11 @@ typecheckWithContext (IfThenElse t1 t2 t3) = do
         then return typ2
         else lift $ Left $ IfBranchesTypeMismatch typ2 typ3
     else lift $ Left $ IfGuardNotBool typ1
-typecheckWithContext ConstZero = lift $ Right TNat
+typecheckWithContext ConstZero = return TNat
 typecheckWithContext (Succ t) = typecheckTerm t TNat TNat
 typecheckWithContext (Pred t) = typecheckTerm t TNat TNat
 typecheckWithContext (IsZero t) = typecheckTerm t TNat TBool
-typecheckWithContext ConstUnit = lift $ Right TUnit
+typecheckWithContext ConstUnit = return TUnit
 typecheckWithContext (Ascription t ty) = do
   actualType <- typecheckWithContext t
   if actualType == ty
@@ -88,11 +84,13 @@ typecheckWithContext (Projection t n) = do
         then return (ts !! (n - 1))
         else lift $ Left (OutOfBoundProj n)
     _ -> lift $ Left (ProjAppliedToNonPair ty)
-typecheckWithContext (Assign _ t) = typecheckWithContext t >>= const (return TUnit)
+typecheckWithContext (Assign s t) = do
+  typ <- typecheckWithContext t
+  modify (Map.insert s typ)
+  return TUnit
 
 typecheckTerm :: Term -> Type -> Type -> StateT TypeContext (Either TypingError) Type
 typecheckTerm t expected output = do
-  ctx <- get
   typ <- typecheckWithContext t
   if typ == expected
     then return output
