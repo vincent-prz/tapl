@@ -1,4 +1,4 @@
-module SimplyTyped.Evaluator (evalTerm) where
+module SimplyTyped.Evaluator (Context, evalTerm, evalTermWithContext) where
 
 import Control.Monad.State (MonadState (get), State, evalState, modify)
 import qualified Data.Map as Map

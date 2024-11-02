@@ -2,6 +2,7 @@ module SimplyTyped.TypeChecker
   ( TypeContext,
     TypingError (..),
     typecheck,
+    typecheckWithContext,
   )
 where
 
