@@ -49,6 +49,7 @@ import SimplyTyped.Definitions
 %nonassoc 'in'
 %left '$'
 %right '->'
+%right '='
 %%
 
 
@@ -72,6 +73,7 @@ Term    : var { Var $1 }
         | let var '=' Term 'in' Term { LetExpr $2 $4 $6 }
         | '(' TupleElems ')' { Tuple $2 }
         | Term '.' number { Projection $1 $3 }
+        | var '=' Term { Assign $1 $3 }
 
 BaseType  : 'Bool' { TBool }
           | 'Nat' { TNat }

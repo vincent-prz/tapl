@@ -2,9 +2,11 @@ module SimplyTyped.TypeChecker
   ( TypeContext,
     TypingError (..),
     typecheck,
+    typecheckWithContext,
   )
 where
 
+import Control.Monad.State (MonadState (get), MonadTrans (lift), StateT, evalStateT, modify)
 import qualified Data.Map as Map
 import SimplyTyped.Definitions
 
@@ -30,62 +32,70 @@ data TypingError
   deriving (Eq, Show)
 
 typecheck :: Term -> Either TypingError Type
-typecheck = typecheckWithContext Map.empty
+typecheck t = evalStateT (typecheckWithContext t) Map.empty
 
-typecheckWithContext :: TypeContext -> Term -> Either TypingError Type
-typecheckWithContext ctx (Var s) =
+typecheckWithContext :: Term -> StateT TypeContext (Either TypingError) Type
+typecheckWithContext (Var s) = do
+  ctx <- get
   case ctx Map.!? s of
-    Nothing -> Left $ UnboundVariable s
-    Just t -> Right t
-typecheckWithContext ctx (Abs (Just s) t b) =
-  Arrow t <$> typecheckWithContext (Map.insert s t ctx) b
-typecheckWithContext ctx (Abs Nothing t b) =
-  Arrow t <$> typecheckWithContext ctx b
-typecheckWithContext ctx (App t1 t2) = do
-  typ1 <- typecheckWithContext ctx t1
-  typ2 <- typecheckWithContext ctx t2
-  typecheckApplication typ1 typ2
-typecheckWithContext _ ConstTrue = Right TBool
-typecheckWithContext _ ConstFalse = Right TBool
-typecheckWithContext ctx (IfThenElse t1 t2 t3) = do
-  typ1 <- typecheckWithContext ctx t1
+    Nothing -> lift $ Left $ UnboundVariable s
+    Just t -> return t
+typecheckWithContext (Abs (Just s) t b) = do
+  modify (Map.insert s t)
+  Arrow t <$> typecheckWithContext b
+typecheckWithContext (Abs Nothing t b) =
+  Arrow t <$> typecheckWithContext b
+typecheckWithContext (App t1 t2) = do
+  -- order matters because t2 can assign variables for t1
+  typ2 <- typecheckWithContext t2
+  typ1 <- typecheckWithContext t1
+  lift $ typecheckApplication typ1 typ2
+typecheckWithContext ConstTrue = return TBool
+typecheckWithContext ConstFalse = return TBool
+typecheckWithContext (IfThenElse t1 t2 t3) = do
+  typ1 <- typecheckWithContext t1
   if typ1 == TBool
     then do
-      typ2 <- typecheckWithContext ctx t2
-      typ3 <- typecheckWithContext ctx t3
+      typ2 <- typecheckWithContext t2
+      typ3 <- typecheckWithContext t3
       if typ2 == typ3
         then return typ2
-        else Left $ IfBranchesTypeMismatch typ2 typ3
-    else Left $ IfGuardNotBool typ1
-typecheckWithContext _ ConstZero = Right TNat
-typecheckWithContext ctx (Succ t) = typecheckTerm ctx t TNat TNat
-typecheckWithContext ctx (Pred t) = typecheckTerm ctx t TNat TNat
-typecheckWithContext ctx (IsZero t) = typecheckTerm ctx t TNat TBool
-typecheckWithContext _ ConstUnit = Right TUnit
-typecheckWithContext ctx (Ascription t ty) = do
-  actualType <- typecheckWithContext ctx t
+        else lift $ Left $ IfBranchesTypeMismatch typ2 typ3
+    else lift $ Left $ IfGuardNotBool typ1
+typecheckWithContext ConstZero = return TNat
+typecheckWithContext (Succ t) = typecheckTerm t TNat TNat
+typecheckWithContext (Pred t) = typecheckTerm t TNat TNat
+typecheckWithContext (IsZero t) = typecheckTerm t TNat TBool
+typecheckWithContext ConstUnit = return TUnit
+typecheckWithContext (Ascription t ty) = do
+  actualType <- typecheckWithContext t
   if actualType == ty
     then return ty
-    else Left $ AscriptionMismatch ty actualType
-typecheckWithContext ctx (LetExpr x t1 t2) = do
-  ty1 <- typecheckWithContext ctx t1
-  typecheckWithContext (Map.insert x ty1 ctx) t2
-typecheckWithContext ctx (Tuple ts) = TTuple <$> mapM (typecheckWithContext ctx) ts
-typecheckWithContext ctx (Projection t n) = do
-  ty <- typecheckWithContext ctx t
+    else lift $ Left $ AscriptionMismatch ty actualType
+typecheckWithContext (LetExpr x t1 t2) = do
+  ty1 <- typecheckWithContext t1
+  modify (Map.insert x ty1)
+  typecheckWithContext t2
+typecheckWithContext (Tuple ts) = TTuple <$> mapM typecheckWithContext ts
+typecheckWithContext (Projection t n) = do
+  ty <- typecheckWithContext t
   case ty of
     TTuple ts ->
       if n `elem` [1 .. length ts]
         then return (ts !! (n - 1))
-        else Left (OutOfBoundProj n)
-    _ -> Left (ProjAppliedToNonPair ty)
+        else lift $ Left (OutOfBoundProj n)
+    _ -> lift $ Left (ProjAppliedToNonPair ty)
+typecheckWithContext (Assign s t) = do
+  typ <- typecheckWithContext t
+  modify (Map.insert s typ)
+  return TUnit
 
-typecheckTerm :: TypeContext -> Term -> Type -> Type -> Either TypingError Type
-typecheckTerm ctx t expected output = do
-  typ <- typecheckWithContext ctx t
+typecheckTerm :: Term -> Type -> Type -> StateT TypeContext (Either TypingError) Type
+typecheckTerm t expected output = do
+  typ <- typecheckWithContext t
   if typ == expected
     then return output
-    else Left $ ArgMisMatch {expected = expected, got = typ}
+    else lift $ Left $ ArgMisMatch {expected = expected, got = typ}
 
 -- check that t1 can be applied to t2
 typecheckApplication :: Type -> Type -> Either TypingError Type

@@ -5,7 +5,7 @@ import SimplyTyped.Desugar
 import SimplyTyped.Evaluator
 import SimplyTyped.Parser
 import SimplyTyped.TypeChecker
-import SimplyTyped.TypeChecker (TypingError (OutOfBoundProj, ProjAppliedToNonPair))
+import SimplyTyped.TypeChecker (TypingError (OutOfBoundProj, ProjAppliedToNonPair, UnboundVariable))
 import SimplyTyped.Unsequence
 import Test.Hspec
 
@@ -154,6 +154,11 @@ spec = do
     it "out of bound projection" $ parseThenTypeCheck "(0, true).3" `shouldBe` Left (OutOfBoundProj 3)
     it "pair as function input" $ show <$> parseThenTypeCheck "\\x:(Nat, Bool).(x.1)" `shouldBe` Right "(Nat, Bool)->Nat"
     it "pair as function input wo parens" $ show <$> parseThenTypeCheck "\\x:(Nat, Bool).x.1" `shouldBe` Right "(Nat, Bool)->Nat"
+    it "simple assignment" $ show <$> parseThenTypeCheck "z=0;z" `shouldBe` Right "Nat"
+    it "simple assignment 2" $ show <$> parseThenTypeCheck "z=0;false" `shouldBe` Right "Bool"
+    it "simple assignment 3" $ show <$> parseThenTypeCheck "z=true" `shouldBe` Right "Unit"
+    it "double assignment" $ show <$> parseThenTypeCheck "f=\\x:Nat.x;z=0; f $ z" `shouldBe` Right "Nat"
+    it "assignment unbound var after assignment" $ show <$> parseThenTypeCheck "z=0;x" `shouldBe` Left (UnboundVariable "x")
   describe "Simply typed evaluation" $ do
     it "identity" $ show (parseThenEval "\\x:Bool.x") `shouldBe` "\\x:Bool.x"
     it "simple application" $
@@ -249,3 +254,10 @@ spec = do
     it "trivial projection 2" $ show (parseThenEval "(0, true).2") `shouldBe` "true"
     it "evaluation inside pair" $ show (parseThenEval "(iszero 0, true)") `shouldBe` "(true, true)"
     it "trivial 3 uple" $ show (parseThenEval "(0, true, false)") `shouldBe` "(0, true, false)"
+    it "tuple applied to nested abs" $ show (parseThenEval "(\\x:(Nat, Nat).\\y:Unit.x) $ (0, 0)") `shouldBe` "\\y:Unit.(0, 0)"
+    it "proj applied to nested abs" $ show (parseThenEval "(\\x:Nat.\\y:Unit.x) $ (0, 0).1") `shouldBe` "\\y:Unit.(0, 0).1"
+  describe "Simply typed assignments" $ do
+    it "simple assignment" $ show (parseThenEval "z=0;z") `shouldBe` "0"
+    it "simple assignment 2" $ show (parseThenEval "z=0;false") `shouldBe` "false"
+    it "simple assignment 3" $ show (parseThenEval "z=true") `shouldBe` "()"
+    it "double assignment" $ show (parseThenEval "f=\\x:Nat.x;z=0; f $ z") `shouldBe` "0"

@@ -54,6 +54,7 @@ data Term
   | Projection
       Term
       Int
+  | Assign String Term
   deriving (Eq)
 
 instance Show Term where
@@ -74,6 +75,7 @@ instance Show Term where
   show (LetExpr x t1 t2) = "let " ++ x ++ "=" ++ show t1 ++ " in " ++ show t2
   show (Tuple ts) = "(" ++ intercalate ", " (map show ts) ++ ")"
   show (Projection t n) = show t ++ "." ++ show n
+  show (Assign s t) = s ++ " = " ++ show t
   show (App t1 t2) = showL t1 ++ " $ " ++ showR t2
     where
       showL (Var s) = s
@@ -115,6 +117,7 @@ data CoreTerm
   | CoProjection
       CoreTerm
       Int
+  | CoAssign String CoreTerm
   deriving (Eq)
 
 instance Show CoreTerm where
@@ -132,6 +135,7 @@ instance Show CoreTerm where
   show (CoLetExpr x t1 t2) = "let " ++ x ++ "=" ++ show t1 ++ " in " ++ show t2
   show (CoTuple ts) = "(" ++ intercalate ", " (map show ts) ++ ")"
   show (CoProjection t n) = show t ++ "." ++ show n
+  show (CoAssign s t) = s ++ " = " ++ show t
   show (CoApp t1 t2) = showL t1 ++ " $ " ++ showR t2
     where
       showL (CoVar s) = s
